@@ -4,8 +4,10 @@ package salticidae
 // #cgo CFLAGS: -I${SRCDIR}/salticidae/include/
 // #cgo LDFLAGS: ${SRCDIR}/salticidae/libsalticidae.so -Wl,-rpath=${SRCDIR}/salticidae/
 // #include <stdlib.h>
+// #include <signal.h>
 // #include "salticidae/netaddr.h"
 // #include "salticidae/network.h"
+// #include "salticidae/event.h"
 import "C"
 import "unsafe"
 
@@ -26,6 +28,7 @@ type EventContext = *C.struct_eventcontext_t
 
 func NewEventContext() EventContext { return C.eventcontext_new() }
 func (self EventContext) Dispatch() { C.eventcontext_dispatch(self) }
+func (self EventContext) Stop() { C.eventcontext_stop(self) }
 
 type MsgNetworkConfig = *C.struct_msgnetwork_config_t
 
@@ -38,3 +41,16 @@ func NewMsgNetwork(ec EventContext, config MsgNetworkConfig) MsgNetwork {
 func (self MsgNetwork) Start() { C.msgnetwork_start(self) }
 func (self MsgNetwork) Listen(addr NetAddr) { C.msgnetwork_listen(self, addr) }
 func (self MsgNetwork) Connect(addr NetAddr) { C.msgnetwork_connect(self, addr) }
+func (self MsgNetwork) Free() { C.msgnetwork_free(self) }
+
+type SigEvent = *C.sigev_t
+type SigEventCallback = C.sigev_callback_t
+var SIGTERM = C.SIGTERM
+var SIGINT = C.SIGINT
+
+func NewSigEvent(ec EventContext, cb SigEventCallback) SigEvent {
+    return C.sigev_new(ec, cb)
+}
+
+func (self SigEvent) Add(sig int) { C.sigev_add(self, C.int(sig)) }
+func (self SigEvent) Free() { C.sigev_free(self) }
