@@ -8,6 +8,10 @@ type ByteArray = *C.struct_bytearray_t
 func NewByteArray() ByteArray { return C.bytearray_new() }
 func (self ByteArray) Free() { C.bytearray_free(self) }
 
+func NewByteArrayMovedFromDataStream(src DataStream) ByteArray {
+    return C.bytearray_new_moved_from_datastream(src)
+}
+
 type DataStream = *C.struct_datastream_t
 
 func NewDataStream() DataStream { return C.datastream_new() }
@@ -81,8 +85,4 @@ func (self UInt256) Unserialize(s DataStream) { C.uint256_unserialize(self, s) }
 
 func (self DataStream) GetHash() UInt256 {
     return C.datastream_get_hash(self)
-}
-
-func (_moved_self DataStream) ToByteArray() ByteArray {
-    return C.datastream_to_bytearray(_moved_self)
 }

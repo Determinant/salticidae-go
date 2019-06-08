@@ -14,3 +14,5 @@ func NewAddrFromIPPortString(addr string) (res NetAddr) {
 }
 
 func (self NetAddr) Free() { C.netaddr_free(self) }
+
+func (self NetAddr) IsEq(other NetAddr) bool { return bool(C.netaddr_is_eq(self, other)) }

@@ -11,6 +11,34 @@ func (self EventContext) Free() { C.eventcontext_free(self) }
 func (self EventContext) Dispatch() { C.eventcontext_dispatch(self) }
 func (self EventContext) Stop() { C.eventcontext_stop(self) }
 
+type ThreadCall = *C.struct_threadcall_t
+type ThreadCallCallback = C.threadcall_callback_t
+
+func NewThreadCall(ec EventContext) ThreadCall { return C.threadcall_new(ec) }
+
+func (self ThreadCall) Free() { C.threadcall_free(self) }
+
+func (self ThreadCall) AsyncCall(callback ThreadCallCallback, userdata rawptr_t) {
+    C.threadcall_async_call(self, callback, userdata)
+}
+
+func (self ThreadCall) GetEC() EventContext { return C.threadcall_get_ec(self) }
+
+type TimerEvent = *C.timerev_t
+type TimerEventCallback = C.timerev_callback_t
+
+func NewTimerEvent(ec EventContext, cb TimerEventCallback) TimerEvent {
+    return C.timerev_new(ec, cb)
+}
+
+func (self TimerEvent) Free() { C.timerev_free(self) }
+func (self TimerEvent) SetCallback(callback TimerEventCallback) {
+    C.timerev_set_callback(self, callback)
+}
+
+func (self TimerEvent) Add(t_sec float64) { C.timerev_add(self, C.double(t_sec)) }
+func (self TimerEvent) Clear() { C.timerev_clear(self) }
+
 type SigEvent = *C.sigev_t
 type SigEventCallback = C.sigev_callback_t
 var SIGTERM = C.SIGTERM

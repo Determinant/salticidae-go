@@ -37,7 +37,9 @@ func msgHelloSerialize(name string, text string) salticidae.Msg {
     serialized.PutData(t)
     serialized.PutData([]byte(name))
     serialized.PutData([]byte(text))
-    return salticidae.NewMsg(MSG_OPCODE_HELLO, serialized.ToByteArray())
+    return salticidae.NewMsg(
+        MSG_OPCODE_HELLO,
+        salticidae.NewByteArrayFromDataStreamByMove(serialized))
 }
 
 func msgHelloUnserialize(msg salticidae.Msg) MsgHello {
