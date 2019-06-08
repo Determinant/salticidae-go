@@ -8,6 +8,10 @@ package salticidae
 // #include "salticidae/netaddr.h"
 // #include "salticidae/network.h"
 // #include "salticidae/event.h"
+//
+// void salticidae_injected_msg_callback(const msg_t *msg, msgnetwork_conn_t *conn) {
+// 
+// }
 import "C"
 import "unsafe"
 
@@ -54,6 +58,7 @@ type MsgNetworkInner = *C.struct_msgnetwork_t
 
 type MsgNetwork struct {
     inner MsgNetworkInner
+    msgHandlers map[Opcode] func(Msg, MsgNetworkConn)
 }
 
 type MsgNetworkConn = *C.struct_msgnetwork_conn_t
@@ -106,6 +111,17 @@ func (self MsgNetworkInner) Connect(addr NetAddr) {
     C.msgnetwork_connect(self, addr)
 }
 
+type MsgNetworkMsgCallback = C.msgnetwork_msg_callback_t
+type MsgNetworkConnCallback = C.msgnetwork_conn_callback_t
+
+func (self MsgNetwork) RegHandler(opcode Opcode, callback MsgNetworkMsgCallback) {
+    C.msgnetwork_reg_handler(self.inner, C._opcode_t(opcode), callback)
+}
+
+func (self MsgNetwork) RegConnHandler(callback MsgNetworkConnCallback) {
+    C.msgnetwork_reg_conn_handler(self.inner, callback)
+}
+
 type SigEvent = *C.sigev_t
 type SigEventCallback = C.sigev_callback_t
 var SIGTERM = C.SIGTERM
@@ -117,3 +133,4 @@ func NewSigEvent(ec EventContext, cb SigEventCallback) SigEvent {
 
 func (self SigEvent) Add(sig int) { C.sigev_add(self, C.int(sig)) }
 func (self SigEvent) Free() { C.sigev_free(self) }
+
