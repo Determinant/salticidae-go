@@ -9,7 +9,6 @@ package main
 import "C"
 
 import (
-    "unsafe"
     "encoding/binary"
     "fmt"
     "salticidae-go"
@@ -130,13 +129,13 @@ func main() {
     alice = genMyNet(ec, "Alice")
     bob = genMyNet(ec, "Bob")
 
-    alice.net.RegHandler(MSG_OPCODE_HELLO, salticidae.MsgNetworkMsgCallback(unsafe.Pointer(C.onReceiveHello)))
-    alice.net.RegHandler(MSG_OPCODE_ACK, salticidae.MsgNetworkMsgCallback(unsafe.Pointer(C.onReceiveAck)))
-    alice.net.RegConnHandler(salticidae.MsgNetworkConnCallback(unsafe.Pointer(C.connHandler)))
+    alice.net.RegHandler(MSG_OPCODE_HELLO, salticidae.MsgNetworkMsgCallback(C.onReceiveHello))
+    alice.net.RegHandler(MSG_OPCODE_ACK, salticidae.MsgNetworkMsgCallback(C.onReceiveAck))
+    alice.net.RegConnHandler(salticidae.MsgNetworkConnCallback(C.connHandler))
 
-    bob.net.RegHandler(MSG_OPCODE_HELLO, salticidae.MsgNetworkMsgCallback(unsafe.Pointer(C.onReceiveHello)))
-    bob.net.RegHandler(MSG_OPCODE_ACK, salticidae.MsgNetworkMsgCallback(unsafe.Pointer(C.onReceiveAck)))
-    bob.net.RegConnHandler(salticidae.MsgNetworkConnCallback(unsafe.Pointer(C.connHandler)))
+    bob.net.RegHandler(MSG_OPCODE_HELLO, salticidae.MsgNetworkMsgCallback(C.onReceiveHello))
+    bob.net.RegHandler(MSG_OPCODE_ACK, salticidae.MsgNetworkMsgCallback(C.onReceiveAck))
+    bob.net.RegConnHandler(salticidae.MsgNetworkConnCallback(C.connHandler))
 
     alice.net.Start()
     bob.net.Start()
@@ -150,9 +149,9 @@ func main() {
     alice_addr.Free()
     bob_addr.Free()
 
-    ev_int := salticidae.NewSigEvent(ec, salticidae.SigEventCallback(unsafe.Pointer(C.onTerm)))
+    ev_int := salticidae.NewSigEvent(ec, salticidae.SigEventCallback(C.onTerm))
     ev_int.Add(salticidae.SIGINT)
-    ev_term := salticidae.NewSigEvent(ec, salticidae.SigEventCallback(unsafe.Pointer(C.onTerm)))
+    ev_term := salticidae.NewSigEvent(ec, salticidae.SigEventCallback(C.onTerm))
     ev_term.Add(salticidae.SIGTERM)
 
     ec.Dispatch()
