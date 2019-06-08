@@ -66,7 +66,7 @@ func onReceiveHello(__msg *C.struct_msg_t, _conn *C.struct_msgnetwork_conn_t) {
     conn := salticidae.MsgNetworkConn(_conn)
     net := conn.GetNet()
     name := bob.name
-    if net == alice.net.GetInner() {
+    if net == alice.net {
         name = alice.name
     }
     msg := msgHelloUnserialize(_msg)
@@ -81,7 +81,7 @@ func onReceiveAck(_ *C.struct_msg_t, _conn *C.struct_msgnetwork_conn_t) {
     conn := salticidae.MsgNetworkConn(_conn)
     net := conn.GetNet()
     name := bob.name
-    if net == alice.net.GetInner() {
+    if net == alice.net {
         name = alice.name
     }
     fmt.Printf("[%s] the peer knows\n", name)
@@ -92,7 +92,7 @@ func connHandler(_conn *C.struct_msgnetwork_conn_t, connected C.bool) {
     conn := salticidae.MsgNetworkConn(_conn)
     net := conn.GetNet()
     n := &bob
-    if net == alice.net.GetInner() {
+    if net == alice.net {
         n = &alice
     }
     name := n.name
