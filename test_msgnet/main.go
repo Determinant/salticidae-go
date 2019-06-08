@@ -1,6 +1,4 @@
 package main
-// void onReceiveAck(const msg_t *, const msgnetwork_conn_t *);
-
 
 // #cgo CFLAGS: -I${SRCDIR}/../salticidae/include/
 // #include "salticidae/network.h"
