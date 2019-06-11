@@ -45,9 +45,9 @@ func msgHelloSerialize(name string, text string) salticidae.Msg {
 
 func msgHelloUnserialize(msg salticidae.Msg) MsgHello {
     p := msg.GetPayload()
-    length := binary.LittleEndian.Uint32(p.GetData(4))
-    name := string(p.GetData(int(length)))
-    text := string(p.GetData(p.Size()))
+    length := binary.LittleEndian.Uint32(p.GetDataInPlace(4))
+    name := string(p.GetDataInPlace(int(length)))
+    text := string(p.GetDataInPlace(p.Size()))
     p.Free()
     return MsgHello { name: name, text: text }
 }

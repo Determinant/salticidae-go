@@ -84,8 +84,12 @@ func NewMsgNetworkConnFromPeerNetWorkConn(conn PeerNetworkConn) MsgNetworkConn {
 func (self PeerNetwork) SendMsg(_moved_msg Msg, paddr NetAddr) { C.peernetwork_send_msg(self, _moved_msg, paddr) }
 
 func (self PeerNetwork) MulticastMsg(_moved_msg Msg, paddrs []NetAddr) {
-    base := uintptr(rawptr_t(&paddrs[0]))
-    C.peernetwork_multicast_msg(self, _moved_msg, (*C.struct_netaddr_t)(rawptr_t(base)), C.size_t(len(paddrs)))
+    size := len(paddrs)
+    if size > 0 {
+        base := (C.netaddr_t *)(&paddrs[0])
+        C.peernetwork_multicast_msg(
+            self, _moved_msg, base, C.size_t(size))
+    }
 }
 
 func (self PeerNetwork) Listen(listenAddr NetAddr) { C.peernetwork_listen(self, listenAddr) }

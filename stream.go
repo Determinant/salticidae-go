@@ -17,10 +17,13 @@ type DataStream = *C.struct_datastream_t
 
 func NewDataStream() DataStream { return C.datastream_new() }
 func NewDataStreamFromBytes(bytes []byte) DataStream {
-    base := uintptr(rawptr_t(&bytes[0]))
-    return C.datastream_new_from_bytes(
-        (*C.uint8_t)(rawptr_t(base)),
-        (*C.uint8_t)(rawptr_t(base + uintptr(len(bytes)))))
+    size := len(bytes)
+    if size > 0 {
+        base := (*C.uint8_t)(&bytes[0])
+        return C.datastream_new_from_bytes(base, base + uintptr(size))
+    } else {
+        return C.datastream_new()
+    }
 }
 
 func (self DataStream) Free() { C.datastream_free(self) }
@@ -50,11 +53,11 @@ func (self DataStream) PutI32(v int32) { C.datastream_put_i32(self, C.int32_t(v)
 func (self DataStream) PutI64(v int32) { C.datastream_put_i64(self, C.int64_t(v)) }
 
 func (self DataStream) PutData(bytes []byte) {
-    base := uintptr(rawptr_t(&bytes[0]))
-    C.datastream_put_data(self,
-        (*C.uint8_t)(rawptr_t(base)),
-        (*C.uint8_t)(rawptr_t(base + uintptr(len(bytes)))))
-
+    size := len(bytes)
+    if size > 0 {
+        base := (*C.uint8_t)(&bytes[0])
+        C.datastream_put_data(self, base, base + uintptr(size))
+    }
 }
 
 func (self DataStream) GetU8() uint8 { return uint8(C.datastream_get_u8(self)) }
@@ -68,12 +71,9 @@ func (self DataStream) GetI32() int32 { return int32(C.datastream_get_i32(self))
 func (self DataStream) GetI64() int64 { return int64(C.datastream_get_i64(self)) }
 
 
-func (self DataStream) GetDataInPlace(length int) *C.uint8_t {
-    return C.datastream_get_data_inplace(self, C.size_t(length))
-}
-
-func (self DataStream) GetData(length int) []byte {
-    return C.GoBytes(rawptr_t(self.GetDataInPlace(length)), C.int(length))
+func (self DataStream) GetDataInPlace(length int) []byte {
+    base := C.datastream_get_data_inplace(self, C.size_t(length))
+    return C.GoBytes(base, C.int(length))
 }
 
 type UInt256 = *C.uint256_t

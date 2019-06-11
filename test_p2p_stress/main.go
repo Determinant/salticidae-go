@@ -14,7 +14,13 @@ package main
 //     int app_id;
 //     uint64_t addr_id;
 //     msgnetwork_conn_t *conn;
-// } timerout_callback_context_t;
+// } timeout_callback_context_t;
+// timeout_callback_context_t *timeout_callback_context_new() {
+//     timeout_callback_context_t *ctx = malloc(sizeof(timeout_callback_context_t);
+//     ctx->conn = NULL;
+//     return ctx;
+// }
+//
 import "C"
 
 import (
@@ -151,7 +157,7 @@ func onReceiveAck(_msg *C.struct_msg_t, _conn *C.struct_msgnetwork_conn_t, userd
     if tc.state == seg_buff_size * 2 {
         sendRand(tc.state, app, conn)
         tc.state = -1
-        ctx := (*C.struct_timeout_callback_context_t)(C.malloc(C.sizeof_struct_timeout_callback_context_t))
+        ctx := C.timeout_callback_context_new()
         ctx.app_id = C.int(id)
         ctx.addr_id = C.uint64_t(addr)
         ctx.conn = (*C.struct_msgnetwork_conn_t)(conn)
