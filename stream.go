@@ -79,6 +79,7 @@ func (self DataStream) GetDataInPlace(length int) []byte {
 type UInt256 = *C.uint256_t
 
 func NewUInt256() UInt256 { return C.uint256_new() }
+func (self UInt256) Free() { C.uint256_free(self) }
 func (self UInt256) UInt256IsNull() bool { return bool(C.uint256_is_null(self)) }
 func (self UInt256) UInt256IsEq(other UInt256) bool { return bool(C.uint256_is_eq(self, other)) }
 func (self UInt256) Serialize(s DataStream) { C.uint256_serialize(self, s) }

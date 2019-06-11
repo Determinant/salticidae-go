@@ -34,6 +34,30 @@ func NewMsgNetworkConfig() MsgNetworkConfig { return C.msgnetwork_config_new() }
 
 func (self MsgNetworkConfig) Free() { C.msgnetwork_config_free(self) }
 
+func (self MsgNetworkConfig) BurstSize(size int) {
+    C.msgnetwork_config_burst_size(self, C.size_t(size))
+}
+
+func (self MsgNetworkConfig) MaxListenBacklog(backlog int) {
+    C.msgnetwork_config_max_listen_backlog(self, C.int(backlog))
+}
+
+func (self MsgNetworkConfig) ConnServerTimeout(timeout float64) {
+    C.msgnetwork_config_conn_server_timeout(self, C.double(timeout))
+}
+
+func (self MsgNetworkConfig) SegBuffSize(size int) {
+    C.msgnetwork_config_seg_buff_size(self, C.size_t(size))
+}
+
+func (self MsgNetworkConfig) NWorker(nworker int) {
+    C.msgnetwork_config_nworker(self, C.size_t(nworker))
+}
+
+func (self MsgNetworkConfig) QueueCapacity(capacity int) {
+    C.msgnetwork_config_queue_capacity(self, C.size_t(capacity))
+}
+
 func NewMsgNetwork(ec EventContext, config MsgNetworkConfig) MsgNetwork {
     return C.msgnetwork_new(ec, config)
 }
@@ -61,9 +85,38 @@ type PeerNetwork = *C.struct_peernetwork_t
 
 type PeerNetworkConn = *C.struct_peernetwork_conn_t
 
+type PeerNetworkIdMode = C.peernetwork_id_mode_t
+
+var (
+    ID_MODE_IP_BASED = PeerNetworkIdMode(C.ID_MODE_IP_BASED)
+    ID_MODE_IP_PORT_BASED = PeerNetworkIdMode(C.ID_MODE_IP_PORT_BASED)
+)
+
 type PeerNetworkConfig = *C.struct_peernetwork_config_t
 
 func NewPeerNetworkConfig() PeerNetworkConfig { return C.peernetwork_config_new() }
+
+func (self PeerNetworkConfig) Free() { C.peernetwork_config_free(self) }
+
+func (self PeerNetworkConfig) RetryConnDelay(t_sec float64) {
+    C.peernetwork_config_retry_conn_delay(self, C.double(t_sec))
+}
+
+func (self PeerNetworkConfig) PingPeriod(t_sec float64) {
+    C.peernetwork_config_ping_period(self, C.double(t_sec))
+}
+
+func (self PeerNetworkConfig) ConnTimeout(t_sec float64) {
+    C.peernetwork_config_conn_timeout(self, C.double(t_sec))
+}
+
+func (self PeerNetworkConfig) IdMode(mode PeerNetworkIdMode) {
+    C.peernetwork_config_id_mode(self, mode)
+}
+
+func (self PeerNetworkConfig) AsMsgNetworkConfig() MsgNetworkConfig {
+    return C.peernetwork_config_as_msgnetwork_config(self)
+}
 
 func NewPeerNetwork(ec EventContext, config PeerNetworkConfig) PeerNetwork {
     return C.peernetwork_new(ec, config)
@@ -81,11 +134,11 @@ func (self PeerNetwork) AsMsgNetwork() MsgNetwork { return C.peernetwork_as_msgn
 
 func NewMsgNetworkConnFromPeerNetWorkConn(conn PeerNetworkConn) MsgNetworkConn { return C.msgnetwork_conn_new_from_peernetwork_conn(conn) }
 
-func (self PeerNetwork) SendMsg(_moved_msg Msg, paddr NetAddr) { C.peernetwork_send_msg(self, _moved_msg, paddr) }
+func (self PeerNetwork) SendMsgByMove(_moved_msg Msg, paddr NetAddr) { C.peernetwork_send_msg_by_move(self, _moved_msg, paddr) }
 
-func (self PeerNetwork) MulticastMsg(_moved_msg Msg, paddrs []NetAddr) {
+func (self PeerNetwork) MulticastMsgByMove(_moved_msg Msg, paddrs []NetAddr) {
     na := NewAddrArrayFromAddrs(paddrs)
-    C.peernetwork_multicast_msg(self, _moved_msg, na)
+    C.peernetwork_multicast_msg_by_move(self, _moved_msg, na)
 }
 
 func (self PeerNetwork) Listen(listenAddr NetAddr) { C.peernetwork_listen(self, listenAddr) }

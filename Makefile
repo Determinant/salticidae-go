@@ -11,3 +11,4 @@ build:
 
 build/test_msgnet: salticidae/libsalticidae.so
 	go build -o $@ salticidae-go/test_msgnet
+	go build -o $@ salticidae-go/test_p2p_stress

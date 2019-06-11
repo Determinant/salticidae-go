@@ -38,13 +38,13 @@ func msgHelloSerialize(name string, text string) salticidae.Msg {
     serialized.PutData(t)
     serialized.PutData([]byte(name))
     serialized.PutData([]byte(text))
-    return salticidae.NewMsg(
+    return salticidae.NewMsgMovedFromByteArray(
         MSG_OPCODE_HELLO,
         salticidae.NewByteArrayMovedFromDataStream(serialized))
 }
 
 func msgHelloUnserialize(msg salticidae.Msg) MsgHello {
-    p := msg.GetPayload()
+    p := msg.ConsumePayload()
     length := binary.LittleEndian.Uint32(p.GetDataInPlace(4))
     name := string(p.GetDataInPlace(int(length)))
     text := string(p.GetDataInPlace(p.Size()))
@@ -53,7 +53,7 @@ func msgHelloUnserialize(msg salticidae.Msg) MsgHello {
 }
 
 func msgAckSerialize() salticidae.Msg {
-    return salticidae.NewMsg(MSG_OPCODE_ACK, salticidae.NewByteArray())
+    return salticidae.NewMsgMovedFromByteArray(MSG_OPCODE_ACK, salticidae.NewByteArray())
 }
 
 type MyNet struct {
