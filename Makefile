@@ -3,8 +3,7 @@
 all: build/test_msgnet
 
 salticidae/libsalticidae.so:
-	cd salticidae/
-	cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED=ON  -DSALTICIDAE_DEBUG_LOG=OFF -DSALTICIDAE_CBINDINGS=ON -DBUILD_TEST=OFF salticidae/ --build salticidae/
+	cd salticidae/; cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED=ON  -DSALTICIDAE_DEBUG_LOG=OFF -DSALTICIDAE_CBINDINGS=ON -DBUILD_TEST=OFF ./
 	make -C salticidae/
 
 build:
