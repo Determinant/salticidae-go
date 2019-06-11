@@ -27,13 +27,13 @@ func (self ThreadCall) GetEC() EventContext { return C.threadcall_get_ec(self) }
 type TimerEvent = *C.timerev_t
 type TimerEventCallback = C.timerev_callback_t
 
-func NewTimerEvent(ec EventContext, cb TimerEventCallback) TimerEvent {
-    return C.timerev_new(ec, cb)
+func NewTimerEvent(ec EventContext, cb TimerEventCallback, userdata rawptr_t) TimerEvent {
+    return C.timerev_new(ec, cb, userdata)
 }
 
 func (self TimerEvent) Free() { C.timerev_free(self) }
-func (self TimerEvent) SetCallback(callback TimerEventCallback) {
-    C.timerev_set_callback(self, callback)
+func (self TimerEvent) SetCallback(callback TimerEventCallback, userdata rawptr_t) {
+    C.timerev_set_callback(self, callback, userdata)
 }
 
 func (self TimerEvent) Add(t_sec float64) { C.timerev_add(self, C.double(t_sec)) }

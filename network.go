@@ -44,16 +44,17 @@ func (self MsgNetwork) Start() { C.msgnetwork_start(self) }
 
 func (self MsgNetwork) SendMsg(msg Msg, conn MsgNetworkConn) { C.msgnetwork_send_msg(self, msg, conn) }
 func (self MsgNetwork) Connect(addr NetAddr) { C.msgnetwork_connect(self, addr) }
+func (self MsgNetwork) Terminate(conn MsgNetworkConn) { C.msgnetwork_terminate(self, conn) }
 
 type MsgNetworkMsgCallback = C.msgnetwork_msg_callback_t
 type MsgNetworkConnCallback = C.msgnetwork_conn_callback_t
 
-func (self MsgNetwork) RegHandler(opcode Opcode, callback MsgNetworkMsgCallback) {
-    C.msgnetwork_reg_handler(self, C._opcode_t(opcode), callback)
+func (self MsgNetwork) RegHandler(opcode Opcode, callback MsgNetworkMsgCallback, userdata rawptr_t) {
+    C.msgnetwork_reg_handler(self, C._opcode_t(opcode), callback, userdata)
 }
 
-func (self MsgNetwork) RegConnHandler(callback MsgNetworkConnCallback) {
-    C.msgnetwork_reg_conn_handler(self, callback)
+func (self MsgNetwork) RegConnHandler(callback MsgNetworkConnCallback, userdata rawptr_t) {
+    C.msgnetwork_reg_conn_handler(self, callback, userdata)
 }
 
 type PeerNetwork = *C.struct_peernetwork_t

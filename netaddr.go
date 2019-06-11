@@ -16,3 +16,9 @@ func NewAddrFromIPPortString(addr string) (res NetAddr) {
 func (self NetAddr) Free() { C.netaddr_free(self) }
 
 func (self NetAddr) IsEq(other NetAddr) bool { return bool(C.netaddr_is_eq(self, other)) }
+
+func (self NetAddr) IsNull() bool { return bool(C.netaddr_is_null(self)) }
+
+func (self NetAddr) GetIP() uint32 { return uint32(C.netaddr_get_ip(self)) }
+
+func (self NetAddr) GetPort() uint16 { return uint16(C.netaddr_get_port(self)) }

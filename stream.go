@@ -82,7 +82,9 @@ func (self UInt256) UInt256IsNull() bool { return bool(C.uint256_is_null(self)) 
 func (self UInt256) UInt256IsEq(other UInt256) bool { return bool(C.uint256_is_eq(self, other)) }
 func (self UInt256) Serialize(s DataStream) { C.uint256_serialize(self, s) }
 func (self UInt256) Unserialize(s DataStream) { C.uint256_unserialize(self, s) }
+func (self UInt256) IsEq(other UInt256) bool { return bool(C.uint256_is_eq(self, other)) }
 
 func (self DataStream) GetHash() UInt256 {
     return C.datastream_get_hash(self)
 }
+
