@@ -3,14 +3,15 @@ package main
 // #cgo CFLAGS: -I${SRCDIR}/../salticidae/include/
 // #include "salticidae/network.h"
 // void onTerm(int sig);
-// void onReceiveHello(msg_t *, msgnetwork_conn_t *);
-// void onReceiveAck(msg_t *, msgnetwork_conn_t *);
-// void connHandler(msgnetwork_conn_t *, bool);
+// void onReceiveHello(msg_t *, msgnetwork_conn_t *, void *);
+// void onReceiveAck(msg_t *, msgnetwork_conn_t *, void *);
+// void connHandler(msgnetwork_conn_t *, bool, void *);
 import "C"
 
 import (
     "encoding/binary"
     "fmt"
+    "unsafe"
     "salticidae-go"
 )
 
@@ -39,7 +40,7 @@ func msgHelloSerialize(name string, text string) salticidae.Msg {
     serialized.PutData([]byte(text))
     return salticidae.NewMsg(
         MSG_OPCODE_HELLO,
-        salticidae.NewByteArrayFromDataStreamByMove(serialized))
+        salticidae.NewByteArrayMovedFromDataStream(serialized))
 }
 
 func msgHelloUnserialize(msg salticidae.Msg) MsgHello {
@@ -63,7 +64,7 @@ type MyNet struct {
 var alice, bob MyNet
 
 //export onReceiveHello
-func onReceiveHello(__msg *C.struct_msg_t, _conn *C.struct_msgnetwork_conn_t) {
+func onReceiveHello(__msg *C.struct_msg_t, _conn *C.struct_msgnetwork_conn_t, _ unsafe.Pointer) {
     _msg := salticidae.Msg(__msg)
     conn := salticidae.MsgNetworkConn(_conn)
     net := conn.GetNet()
@@ -79,7 +80,7 @@ func onReceiveHello(__msg *C.struct_msg_t, _conn *C.struct_msgnetwork_conn_t) {
 }
 
 //export onReceiveAck
-func onReceiveAck(_ *C.struct_msg_t, _conn *C.struct_msgnetwork_conn_t) {
+func onReceiveAck(_ *C.struct_msg_t, _conn *C.struct_msgnetwork_conn_t, _ unsafe.Pointer) {
     conn := salticidae.MsgNetworkConn(_conn)
     net := conn.GetNet()
     name := bob.name
@@ -90,7 +91,7 @@ func onReceiveAck(_ *C.struct_msg_t, _conn *C.struct_msgnetwork_conn_t) {
 }
 
 //export connHandler
-func connHandler(_conn *C.struct_msgnetwork_conn_t, connected C.bool) {
+func connHandler(_conn *C.struct_msgnetwork_conn_t, connected C.bool, _ unsafe.Pointer) {
     conn := salticidae.MsgNetworkConn(_conn)
     net := conn.GetNet()
     n := &bob
@@ -131,13 +132,13 @@ func main() {
     alice = genMyNet(ec, "Alice")
     bob = genMyNet(ec, "Bob")
 
-    alice.net.RegHandler(MSG_OPCODE_HELLO, salticidae.MsgNetworkMsgCallback(C.onReceiveHello))
-    alice.net.RegHandler(MSG_OPCODE_ACK, salticidae.MsgNetworkMsgCallback(C.onReceiveAck))
-    alice.net.RegConnHandler(salticidae.MsgNetworkConnCallback(C.connHandler))
+    alice.net.RegHandler(MSG_OPCODE_HELLO, salticidae.MsgNetworkMsgCallback(C.onReceiveHello), nil)
+    alice.net.RegHandler(MSG_OPCODE_ACK, salticidae.MsgNetworkMsgCallback(C.onReceiveAck), nil)
+    alice.net.RegConnHandler(salticidae.MsgNetworkConnCallback(C.connHandler), nil)
 
-    bob.net.RegHandler(MSG_OPCODE_HELLO, salticidae.MsgNetworkMsgCallback(C.onReceiveHello))
-    bob.net.RegHandler(MSG_OPCODE_ACK, salticidae.MsgNetworkMsgCallback(C.onReceiveAck))
-    bob.net.RegConnHandler(salticidae.MsgNetworkConnCallback(C.connHandler))
+    bob.net.RegHandler(MSG_OPCODE_HELLO, salticidae.MsgNetworkMsgCallback(C.onReceiveHello), nil)
+    bob.net.RegHandler(MSG_OPCODE_ACK, salticidae.MsgNetworkMsgCallback(C.onReceiveAck), nil)
+    bob.net.RegConnHandler(salticidae.MsgNetworkConnCallback(C.connHandler), nil)
 
     alice.net.Start()
     bob.net.Start()
