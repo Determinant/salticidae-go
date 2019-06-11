@@ -251,7 +251,7 @@ func main() {
     ec = salticidae.NewEventContext()
 
     var addrs []salticidae.NetAddr
-    for i := 0; i < 4; i++ {
+    for i := 0; i < 5; i++ {
         addrs = append(addrs,
             salticidae.NewAddrFromIPPortString("127.0.0.1:" + strconv.Itoa(12345 + i)))
     }
