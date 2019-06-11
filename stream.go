@@ -1,5 +1,6 @@
 package salticidae
 
+// #include <stdlib.h>
 // #include "salticidae/stream.h"
 import "C"
 
@@ -88,3 +89,17 @@ func (self DataStream) GetHash() UInt256 {
     return C.datastream_get_hash(self)
 }
 
+func (self DataStream) GetHex() string {
+    tmp := C.datastream_get_hex(self)
+    res := C.GoString(tmp)
+    C.free(rawptr_t(tmp))
+    return res
+}
+
+func (self UInt256) GetHex() string {
+    s := NewDataStream()
+    self.Serialize(s)
+    res := s.GetHex()
+    s.Free()
+    return res
+}
