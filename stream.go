@@ -20,7 +20,7 @@ func NewDataStreamFromBytes(bytes []byte) DataStream {
     size := len(bytes)
     if size > 0 {
         base := (*C.uint8_t)(&bytes[0])
-        return C.datastream_new_from_bytes(base, base + uintptr(size))
+        return C.datastream_new_from_bytes(base, C.size_t(size))
     } else {
         return C.datastream_new()
     }
@@ -56,7 +56,7 @@ func (self DataStream) PutData(bytes []byte) {
     size := len(bytes)
     if size > 0 {
         base := (*C.uint8_t)(&bytes[0])
-        C.datastream_put_data(self, base, base + uintptr(size))
+        C.datastream_put_data(self, base, C.size_t(size))
     }
 }
 
@@ -73,7 +73,7 @@ func (self DataStream) GetI64() int64 { return int64(C.datastream_get_i64(self))
 
 func (self DataStream) GetDataInPlace(length int) []byte {
     base := C.datastream_get_data_inplace(self, C.size_t(length))
-    return C.GoBytes(base, C.int(length))
+    return C.GoBytes(rawptr_t(base), C.int(length))
 }
 
 type UInt256 = *C.uint256_t

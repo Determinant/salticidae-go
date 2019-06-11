@@ -15,8 +15,8 @@ package main
 //     uint64_t addr_id;
 //     msgnetwork_conn_t *conn;
 // } timeout_callback_context_t;
-// timeout_callback_context_t *timeout_callback_context_new() {
-//     timeout_callback_context_t *ctx = malloc(sizeof(timeout_callback_context_t);
+// static timeout_callback_context_t *timeout_callback_context_new() {
+//     timeout_callback_context_t *ctx = malloc(sizeof(timeout_callback_context_t));
 //     ctx->conn = NULL;
 //     return ctx;
 // }
