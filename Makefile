@@ -9,7 +9,7 @@ salticidae/libsalticidae.so:
 build:
 	mkdir -p build
 
-build/test_msgnet: salticidae/libsalticidae.so
+build/test_msgnet: salticidae/libsalticidae.so test_msgnet/main.go
 	go build -o $@ salticidae-go/test_msgnet
-build/test_p2p_stress: salticidae/libsalticidae.so
+build/test_p2p_stress: salticidae/libsalticidae.so test_p2p_stress/main.go
 	go build -o $@ salticidae-go/test_p2p_stress

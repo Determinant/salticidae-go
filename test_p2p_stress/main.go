@@ -194,9 +194,10 @@ func onReceiveAck(_msg *C.struct_msg_t, _conn *C.struct_msgnetwork_conn_t, userd
         ctx := C.timeout_callback_context_new()
         ctx.app_id = C.int(id)
         ctx.addr_id = C.uint64_t(addr)
-        ctx.conn = (*C.struct_msgnetwork_conn_t)(conn)
+        ctx.conn = (*C.struct_msgnetwork_conn_t)(conn.Copy())
         if tc.timer != nil {
             tc.timer.Free()
+            salticidae.MsgNetworkConn(tc.timer_ctx.conn).Free()
             C.free(unsafe.Pointer(tc.timer_ctx))
         }
         tc.timer = salticidae.NewTimerEvent(app.ec, salticidae.TimerEventCallback(C.onTimeout), unsafe.Pointer(ctx))

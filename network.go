@@ -70,6 +70,9 @@ func (self MsgNetwork) SendMsg(msg Msg, conn MsgNetworkConn) { C.msgnetwork_send
 func (self MsgNetwork) Connect(addr NetAddr) { C.msgnetwork_connect(self, addr) }
 func (self MsgNetwork) Terminate(conn MsgNetworkConn) { C.msgnetwork_terminate(self, conn) }
 
+func (self MsgNetworkConn) Copy() MsgNetworkConn { return C.msgnetwork_conn_copy(self) }
+func (self MsgNetworkConn) Free() { C.msgnetwork_conn_free(self) }
+
 type MsgNetworkMsgCallback = C.msgnetwork_msg_callback_t
 type MsgNetworkConnCallback = C.msgnetwork_conn_callback_t
 
@@ -133,6 +136,10 @@ func (self PeerNetwork) GetPeerConn(paddr NetAddr) PeerNetworkConn { return C.pe
 func (self PeerNetwork) AsMsgNetwork() MsgNetwork { return C.peernetwork_as_msgnetwork(self) }
 
 func NewMsgNetworkConnFromPeerNetWorkConn(conn PeerNetworkConn) MsgNetworkConn { return C.msgnetwork_conn_new_from_peernetwork_conn(conn) }
+
+func (self PeerNetworkConn) Copy() PeerNetworkConn { return C.peernetwork_conn_copy(self) }
+
+func (self PeerNetworkConn) Free() { C.peernetwork_conn_free(self) }
 
 func (self PeerNetwork) SendMsgByMove(_moved_msg Msg, paddr NetAddr) { C.peernetwork_send_msg_by_move(self, _moved_msg, paddr) }
 
