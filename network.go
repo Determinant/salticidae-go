@@ -67,7 +67,7 @@ func (self MsgNetwork) Listen(addr NetAddr) { C.msgnetwork_listen(self, addr) }
 func (self MsgNetwork) Start() { C.msgnetwork_start(self) }
 
 func (self MsgNetwork) SendMsg(msg Msg, conn MsgNetworkConn) { C.msgnetwork_send_msg(self, msg, conn) }
-func (self MsgNetwork) Connect(addr NetAddr) { C.msgnetwork_connect(self, addr) }
+func (self MsgNetwork) Connect(addr NetAddr) MsgNetworkConn { return C.msgnetwork_connect(self, addr) }
 func (self MsgNetwork) Terminate(conn MsgNetworkConn) { C.msgnetwork_terminate(self, conn) }
 
 func (self MsgNetworkConn) Copy() MsgNetworkConn { return C.msgnetwork_conn_copy(self) }

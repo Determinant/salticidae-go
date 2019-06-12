@@ -44,8 +44,8 @@ type SigEventCallback = C.sigev_callback_t
 var SIGTERM = C.SIGTERM
 var SIGINT = C.SIGINT
 
-func NewSigEvent(ec EventContext, cb SigEventCallback) SigEvent {
-    return C.sigev_new(ec, cb)
+func NewSigEvent(ec EventContext, cb SigEventCallback, userdata rawptr_t) SigEvent {
+    return C.sigev_new(ec, cb, userdata)
 }
 
 func (self SigEvent) Add(sig int) { C.sigev_add(self, C.int(sig)) }

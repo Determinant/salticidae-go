@@ -4,7 +4,7 @@ package main
 // #include <stdlib.h>
 // #include <arpa/inet.h>
 // #include "salticidae/network.h"
-// void onTerm(int sig);
+// void onTerm(int sig, void *);
 // void onReceiveRand(msg_t *, msgnetwork_conn_t *, void *);
 // void onReceiveAck(msg_t *, msgnetwork_conn_t *, void *);
 // void onStopLoop(threadcall_handle_t *, void *);
@@ -32,7 +32,6 @@ import (
     "strconv"
 )
 
-var ec salticidae.EventContext
 const (
     MSG_OPCODE_RAND salticidae.Opcode = iota
     MSG_OPCODE_ACK
@@ -140,8 +139,8 @@ func sendRand(size int, app *AppContext, conn salticidae.MsgNetworkConn) {
 
 var apps []AppContext
 var threads sync.WaitGroup
-
-var seg_buff_size = 4096
+var segBuffSize = 4096
+var ec salticidae.EventContext
 
 //export onTimeout
 func onTimeout(_ *C.timerev_t, userdata unsafe.Pointer) {
@@ -188,7 +187,7 @@ func onReceiveAck(_msg *C.struct_msg_t, _conn *C.struct_msgnetwork_conn_t, userd
     }
     hash.Free()
 
-    if tc.state == seg_buff_size * 2 {
+    if tc.state == segBuffSize * 2 {
         sendRand(tc.state, app, conn)
         tc.state = -1
         ctx := C.timeout_callback_context_new()
@@ -206,7 +205,7 @@ func onReceiveAck(_msg *C.struct_msg_t, _conn *C.struct_msgnetwork_conn_t, userd
         tc.timer.Add(t)
         fmt.Printf("rand-bomboard phase, ending in %.2f secs\n", t)
     } else if tc.state == -1 {
-        sendRand(rand.Int() % (seg_buff_size * 10), app, conn)
+        sendRand(rand.Int() % (segBuffSize * 10), app, conn)
     } else {
         tc.state++
         sendRand(tc.state, app, conn)
@@ -237,7 +236,7 @@ func onStopLoop(_ *C.threadcall_handle_t, userdata unsafe.Pointer) {
 }
 
 //export onTerm
-func onTerm(_ C.int) {
+func onTerm(_ C.int, _ unsafe.Pointer) {
     for i, _ := range apps {
         a := &apps[i]
         a.tcall.AsyncCall(
@@ -258,7 +257,7 @@ func main() {
     }
     netconfig := salticidae.NewPeerNetworkConfig()
     nc := netconfig.AsMsgNetworkConfig()
-    nc.SegBuffSize(4096)
+    nc.SegBuffSize(segBuffSize)
     nc.NWorker(2)
     netconfig.ConnTimeout(5)
     netconfig.PingPeriod(2)
@@ -302,9 +301,9 @@ func main() {
         }()
     }
 
-    ev_int := salticidae.NewSigEvent(ec, salticidae.SigEventCallback(C.onTerm))
+    ev_int := salticidae.NewSigEvent(ec, salticidae.SigEventCallback(C.onTerm), nil)
     ev_int.Add(salticidae.SIGINT)
-    ev_term := salticidae.NewSigEvent(ec, salticidae.SigEventCallback(C.onTerm))
+    ev_term := salticidae.NewSigEvent(ec, salticidae.SigEventCallback(C.onTerm), nil)
     ev_term.Add(salticidae.SIGTERM)
 
     ec.Dispatch()

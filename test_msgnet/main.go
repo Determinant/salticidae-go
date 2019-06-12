@@ -2,7 +2,7 @@ package main
 
 // #cgo CFLAGS: -I${SRCDIR}/../salticidae/include/
 // #include "salticidae/network.h"
-// void onTerm(int sig);
+// void onTerm(int sig, void *);
 // void onReceiveHello(msg_t *, msgnetwork_conn_t *, void *);
 // void onReceiveAck(msg_t *, msgnetwork_conn_t *, void *);
 // void connHandler(msgnetwork_conn_t *, bool, void *);
@@ -15,21 +15,10 @@ import (
     "github.com/Determinant/salticidae-go"
 )
 
-var ec salticidae.EventContext
 const (
     MSG_OPCODE_HELLO salticidae.Opcode = iota
     MSG_OPCODE_ACK
 )
-
-//export onTerm
-func onTerm(_ C.int) {
-    ec.Stop()
-}
-
-type MsgHello struct {
-    name string
-    text string
-}
 
 func msgHelloSerialize(name string, text string) salticidae.Msg {
     serialized := salticidae.NewDataStream()
@@ -43,13 +32,13 @@ func msgHelloSerialize(name string, text string) salticidae.Msg {
         salticidae.NewByteArrayMovedFromDataStream(serialized))
 }
 
-func msgHelloUnserialize(msg salticidae.Msg) MsgHello {
+func msgHelloUnserialize(msg salticidae.Msg) (name string, text string) {
     p := msg.ConsumePayload()
     length := binary.LittleEndian.Uint32(p.GetDataInPlace(4))
-    name := string(p.GetDataInPlace(int(length)))
-    text := string(p.GetDataInPlace(p.Size()))
+    name = string(p.GetDataInPlace(int(length)))
+    text = string(p.GetDataInPlace(p.Size()))
     p.Free()
-    return MsgHello { name: name, text: text }
+    return
 }
 
 func msgAckSerialize() salticidae.Msg {
@@ -61,19 +50,27 @@ type MyNet struct {
     name string
 }
 
-var alice, bob MyNet
+var (
+    alice, bob MyNet
+    ec salticidae.EventContext
+)
+
+//export onTerm
+func onTerm(_ C.int, _ unsafe.Pointer) {
+    ec.Stop()
+}
 
 //export onReceiveHello
-func onReceiveHello(__msg *C.struct_msg_t, _conn *C.struct_msgnetwork_conn_t, _ unsafe.Pointer) {
-    _msg := salticidae.Msg(__msg)
+func onReceiveHello(_msg *C.struct_msg_t, _conn *C.struct_msgnetwork_conn_t, _ unsafe.Pointer) {
+    msg := salticidae.Msg(_msg)
     conn := salticidae.MsgNetworkConn(_conn)
     net := conn.GetNet()
-    name := bob.name
+    myName := bob.name
     if net == alice.net {
-        name = alice.name
+        myName = alice.name
     }
-    msg := msgHelloUnserialize(_msg)
-    fmt.Printf("[%s] %s says %s\n", name, msg.name, msg.text)
+    name, text := msgHelloUnserialize(msg)
+    fmt.Printf("[%s] %s says %s\n", myName, name, text)
     ack := msgAckSerialize()
     net.SendMsg(ack, conn)
     ack.Free()
@@ -110,7 +107,9 @@ func connHandler(_conn *C.struct_msgnetwork_conn_t, connected C.bool, _ unsafe.P
         }
     } else {
         fmt.Printf("[%s] Disconnected, retrying.\n", name)
-        net.Connect(conn.GetAddr())
+        addr := conn.GetAddr()
+        net.Connect(addr).Free()
+        addr.Free()
     }
 }
 
@@ -120,6 +119,9 @@ func genMyNet(ec salticidae.EventContext, name string) MyNet {
         net: salticidae.NewMsgNetwork(ec, netconfig),
         name: name,
     }
+    n.net.RegHandler(MSG_OPCODE_HELLO, salticidae.MsgNetworkMsgCallback(C.onReceiveHello), nil)
+    n.net.RegHandler(MSG_OPCODE_ACK, salticidae.MsgNetworkMsgCallback(C.onReceiveAck), nil)
+    n.net.RegConnHandler(salticidae.MsgNetworkConnCallback(C.connHandler), nil)
     netconfig.Free()
     return n
 }
@@ -132,36 +134,28 @@ func main() {
     alice = genMyNet(ec, "Alice")
     bob = genMyNet(ec, "Bob")
 
-    alice.net.RegHandler(MSG_OPCODE_HELLO, salticidae.MsgNetworkMsgCallback(C.onReceiveHello), nil)
-    alice.net.RegHandler(MSG_OPCODE_ACK, salticidae.MsgNetworkMsgCallback(C.onReceiveAck), nil)
-    alice.net.RegConnHandler(salticidae.MsgNetworkConnCallback(C.connHandler), nil)
-
-    bob.net.RegHandler(MSG_OPCODE_HELLO, salticidae.MsgNetworkMsgCallback(C.onReceiveHello), nil)
-    bob.net.RegHandler(MSG_OPCODE_ACK, salticidae.MsgNetworkMsgCallback(C.onReceiveAck), nil)
-    bob.net.RegConnHandler(salticidae.MsgNetworkConnCallback(C.connHandler), nil)
-
     alice.net.Start()
     bob.net.Start()
 
     alice.net.Listen(alice_addr)
     bob.net.Listen(bob_addr)
 
-    alice.net.Connect(bob_addr)
-    bob.net.Connect(alice_addr)
+    alice.net.Connect(bob_addr).Free()
+    bob.net.Connect(alice_addr).Free()
 
     alice_addr.Free()
     bob_addr.Free()
 
-    ev_int := salticidae.NewSigEvent(ec, salticidae.SigEventCallback(C.onTerm))
+    ev_int := salticidae.NewSigEvent(ec, salticidae.SigEventCallback(C.onTerm), nil)
     ev_int.Add(salticidae.SIGINT)
-    ev_term := salticidae.NewSigEvent(ec, salticidae.SigEventCallback(C.onTerm))
+    ev_term := salticidae.NewSigEvent(ec, salticidae.SigEventCallback(C.onTerm), nil)
     ev_term.Add(salticidae.SIGTERM)
 
     ec.Dispatch()
 
-    ev_int.Free()
-    ev_term.Free()
     alice.net.Free()
     bob.net.Free()
+    ev_int.Free()
+    ev_term.Free()
     ec.Free()
 }
