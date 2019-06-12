@@ -12,7 +12,7 @@ import (
     "encoding/binary"
     "fmt"
     "unsafe"
-    "salticidae-go"
+    "github.com/Determinant/salticidae-go"
 )
 
 var ec salticidae.EventContext

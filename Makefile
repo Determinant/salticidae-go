@@ -10,6 +10,11 @@ build:
 	mkdir -p build
 
 build/test_msgnet: salticidae/libsalticidae.so test_msgnet/main.go
-	go build -o $@ salticidae-go/test_msgnet
+	go build -o $@ github.com/Determinant/salticidae-go/test_msgnet
 build/test_p2p_stress: salticidae/libsalticidae.so test_p2p_stress/main.go
-	go build -o $@ salticidae-go/test_p2p_stress
+	go build -o $@ github.com/Determinant/salticidae-go/test_p2p_stress
+
+clean:
+	rm -r build/
+	cd salticidae/; make clean
+	rm salticidae/CMakeCache.txt

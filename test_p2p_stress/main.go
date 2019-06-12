@@ -24,7 +24,7 @@ package main
 import "C"
 
 import (
-    "salticidae-go"
+    "github.com/Determinant/salticidae-go"
     "math/rand"
     "fmt"
     "sync"
