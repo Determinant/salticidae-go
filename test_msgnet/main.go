@@ -6,6 +6,7 @@ package main
 // void onReceiveHello(msg_t *, msgnetwork_conn_t *, void *);
 // void onReceiveAck(msg_t *, msgnetwork_conn_t *, void *);
 // void connHandler(msgnetwork_conn_t *, bool, void *);
+// void errorHandler(SalticidaeCError *, bool, void *);
 import "C"
 
 import (
@@ -120,6 +121,14 @@ func connHandler(_conn *C.struct_msgnetwork_conn_t, connected C.bool, _ unsafe.P
     }
 }
 
+//export errorHandler
+func errorHandler(_err *C.struct_SalticidaeCError, fatal C.bool, _ unsafe.Pointer) {
+    err := (*salticidae.Error)(unsafe.Pointer(_err))
+    s := "recoverable"
+    if fatal { s = "fatal" }
+    fmt.Printf("Captured %s error during an async call: %s\n", s, salticidae.StrError(err.GetCode()))
+}
+
 func genMyNet(ec salticidae.EventContext, name string) MyNet {
     netconfig := salticidae.NewMsgNetworkConfig()
     n := MyNet {
@@ -129,6 +138,7 @@ func genMyNet(ec salticidae.EventContext, name string) MyNet {
     n.net.RegHandler(MSG_OPCODE_HELLO, salticidae.MsgNetworkMsgCallback(C.onReceiveHello), nil)
     n.net.RegHandler(MSG_OPCODE_ACK, salticidae.MsgNetworkMsgCallback(C.onReceiveAck), nil)
     n.net.RegConnHandler(salticidae.MsgNetworkConnCallback(C.connHandler), nil)
+    n.net.RegErrorHandler(salticidae.MsgNetworkErrorCallback(C.errorHandler), nil)
     netconfig.Free()
     return n
 }

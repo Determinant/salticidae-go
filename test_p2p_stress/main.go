@@ -9,6 +9,7 @@ package main
 // void onReceiveAck(msg_t *, msgnetwork_conn_t *, void *);
 // void onStopLoop(threadcall_handle_t *, void *);
 // void connHandler(msgnetwork_conn_t *, bool, void *);
+// void errorHandler(SalticidaeCError *, bool, void *);
 // void onTimeout(timerev_t *, void *);
 // typedef struct timeout_callback_context_t {
 //     int app_id;
@@ -235,6 +236,14 @@ func connHandler(_conn *C.struct_msgnetwork_conn_t, connected C.bool, userdata u
     }
 }
 
+//export errorHandler
+func errorHandler(_err *C.struct_SalticidaeCError, fatal C.bool, _ unsafe.Pointer) {
+    err := (*salticidae.Error)(unsafe.Pointer(_err))
+    s := "recoverable"
+    if fatal { s = "fatal" }
+    fmt.Printf("Captured %s error during an async call: %s\n", s, salticidae.StrError(err.GetCode()))
+}
+
 //export onStopLoop
 func onStopLoop(_ *C.threadcall_handle_t, userdata unsafe.Pointer) {
     ec := salticidae.EventContext(userdata)
@@ -285,6 +294,7 @@ func main() {
         net.RegHandler(MSG_OPCODE_RAND, salticidae.MsgNetworkMsgCallback(C.onReceiveRand), _i)
         net.RegHandler(MSG_OPCODE_ACK, salticidae.MsgNetworkMsgCallback(C.onReceiveAck), _i)
         net.RegConnHandler(salticidae.MsgNetworkConnCallback(C.connHandler), _i)
+        net.RegErrorHandler(salticidae.MsgNetworkErrorCallback(C.errorHandler), _i)
         net.Start()
     }
     netconfig.Free()

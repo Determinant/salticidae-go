@@ -75,6 +75,7 @@ func (self MsgNetworkConn) Free() { C.msgnetwork_conn_free(self) }
 
 type MsgNetworkMsgCallback = C.msgnetwork_msg_callback_t
 type MsgNetworkConnCallback = C.msgnetwork_conn_callback_t
+type MsgNetworkErrorCallback = C.msgnetwork_error_callback_t
 
 func (self MsgNetwork) RegHandler(opcode Opcode, callback MsgNetworkMsgCallback, userdata rawptr_t) {
     C.msgnetwork_reg_handler(self, C._opcode_t(opcode), callback, userdata)
@@ -82,6 +83,10 @@ func (self MsgNetwork) RegHandler(opcode Opcode, callback MsgNetworkMsgCallback,
 
 func (self MsgNetwork) RegConnHandler(callback MsgNetworkConnCallback, userdata rawptr_t) {
     C.msgnetwork_reg_conn_handler(self, callback, userdata)
+}
+
+func (self MsgNetwork) RegErrorHandler(callback MsgNetworkErrorCallback, userdata rawptr_t) {
+    C.msgnetwork_reg_error_handler(self, callback, userdata)
 }
 
 type PeerNetwork = *C.struct_peernetwork_t
