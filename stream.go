@@ -42,33 +42,33 @@ func (self DataStream) Clear() { C.datastream_clear(self) }
 
 func (self DataStream) Size() int { return int(C.datastream_size(self)) }
 
-func (self DataStream) PutU8(v uint8) { C.datastream_put_u8(self, C.uint8_t(v)) }
-func (self DataStream) PutU16(v uint16) { C.datastream_put_u16(self, C.uint16_t(v)) }
-func (self DataStream) PutU32(v uint32) { C.datastream_put_u32(self, C.uint32_t(v)) }
-func (self DataStream) PutU64(v uint32) { C.datastream_put_u64(self, C.uint64_t(v)) }
+func (self DataStream) PutU8(v uint8) bool { return bool(C.datastream_put_u8(self, C.uint8_t(v))) }
+func (self DataStream) PutU16(v uint16) bool { return bool(C.datastream_put_u16(self, C.uint16_t(v))) }
+func (self DataStream) PutU32(v uint32) bool { return bool(C.datastream_put_u32(self, C.uint32_t(v))) }
+func (self DataStream) PutU64(v uint32) bool { return bool(C.datastream_put_u64(self, C.uint64_t(v))) }
 
-func (self DataStream) PutI8(v int8) { C.datastream_put_i8(self, C.int8_t(v)) }
-func (self DataStream) PutI16(v int16) { C.datastream_put_i16(self, C.int16_t(v)) }
-func (self DataStream) PutI32(v int32) { C.datastream_put_i32(self, C.int32_t(v)) }
-func (self DataStream) PutI64(v int32) { C.datastream_put_i64(self, C.int64_t(v)) }
+func (self DataStream) PutI8(v int8) bool { return bool(C.datastream_put_i8(self, C.int8_t(v))) }
+func (self DataStream) PutI16(v int16) bool { return bool(C.datastream_put_i16(self, C.int16_t(v))) }
+func (self DataStream) PutI32(v int32) bool { return bool(C.datastream_put_i32(self, C.int32_t(v))) }
+func (self DataStream) PutI64(v int32) bool { return bool(C.datastream_put_i64(self, C.int64_t(v))) }
 
-func (self DataStream) PutData(bytes []byte) {
+func (self DataStream) PutData(bytes []byte) bool {
     size := len(bytes)
     if size > 0 {
         base := (*C.uint8_t)(&bytes[0])
-        C.datastream_put_data(self, base, C.size_t(size))
-    }
+        return bool(C.datastream_put_data(self, base, C.size_t(size)))
+    } else { return true }
 }
 
-func (self DataStream) GetU8() uint8 { return uint8(C.datastream_get_u8(self)) }
-func (self DataStream) GetU16() uint16 { return uint16(C.datastream_get_u16(self)) }
-func (self DataStream) GetU32() uint32 { return uint32(C.datastream_get_u32(self)) }
-func (self DataStream) GetU64() uint64 { return uint64(C.datastream_get_u64(self)) }
+func (self DataStream) GetU8(succ *bool) uint8 { return uint8(C.datastream_get_u8(self, (*C.bool)(succ))) }
+func (self DataStream) GetU16(succ *bool) uint16 { return uint16(C.datastream_get_u16(self, (*C.bool)(succ))) }
+func (self DataStream) GetU32(succ *bool) uint32 { return uint32(C.datastream_get_u32(self, (*C.bool)(succ))) }
+func (self DataStream) GetU64(succ *bool) uint64 { return uint64(C.datastream_get_u64(self, (*C.bool)(succ))) }
 
-func (self DataStream) GetI8() int8 { return int8(C.datastream_get_i8(self)) }
-func (self DataStream) GetI16() int16 { return int16(C.datastream_get_i16(self)) }
-func (self DataStream) GetI32() int32 { return int32(C.datastream_get_i32(self)) }
-func (self DataStream) GetI64() int64 { return int64(C.datastream_get_i64(self)) }
+func (self DataStream) GetI8(succ *bool) int8 { return int8(C.datastream_get_i8(self, (*C.bool)(succ))) }
+func (self DataStream) GetI16(succ *bool) int16 { return int16(C.datastream_get_i16(self, (*C.bool)(succ))) }
+func (self DataStream) GetI32(succ *bool) int32 { return int32(C.datastream_get_i32(self, (*C.bool)(succ))) }
+func (self DataStream) GetI64(succ *bool) int64 { return int64(C.datastream_get_i64(self, (*C.bool)(succ))) }
 
 
 func (self DataStream) GetDataInPlace(length int) []byte {

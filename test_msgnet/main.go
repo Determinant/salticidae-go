@@ -10,6 +10,7 @@ import "C"
 
 import (
     "encoding/binary"
+    "os"
     "fmt"
     "unsafe"
     "github.com/Determinant/salticidae-go"
@@ -45,6 +46,13 @@ func msgAckSerialize() salticidae.Msg {
     return salticidae.NewMsgMovedFromByteArray(MSG_OPCODE_ACK, salticidae.NewByteArray())
 }
 
+func checkError(err *salticidae.Error) {
+    if err.GetCode() != 0 {
+        fmt.Printf("error during a sync call: %s\n", salticidae.StrError(err.GetCode()))
+        os.Exit(1)
+    }
+}
+
 type MyNet struct {
     net salticidae.MsgNetwork
     name string
@@ -72,8 +80,7 @@ func onReceiveHello(_msg *C.struct_msg_t, _conn *C.struct_msgnetwork_conn_t, _ u
     name, text := msgHelloUnserialize(msg)
     fmt.Printf("[%s] %s says %s\n", myName, name, text)
     ack := msgAckSerialize()
-    net.SendMsg(ack, conn)
-    ack.Free()
+    net.SendMsgByMove(ack, conn)
 }
 
 //export onReceiveAck
@@ -100,15 +107,15 @@ func connHandler(_conn *C.struct_msgnetwork_conn_t, connected C.bool, _ unsafe.P
         if conn.GetMode() == salticidae.CONN_MODE_ACTIVE {
             fmt.Printf("[%s] Connected, sending hello.", name)
             hello := msgHelloSerialize(name, "Hello there!")
-            n.net.SendMsg(hello, conn)
-            hello.Free()
+            n.net.SendMsgByMove(hello, conn)
         } else {
             fmt.Printf("[%s] Accepted, waiting for greetings.\n", name)
         }
     } else {
         fmt.Printf("[%s] Disconnected, retrying.\n", name)
         addr := conn.GetAddr()
-        net.Connect(addr).Free()
+        err := salticidae.NewError()
+        net.Connect(addr, &err).Free()
         addr.Free()
     }
 }
@@ -128,6 +135,8 @@ func genMyNet(ec salticidae.EventContext, name string) MyNet {
 
 func main() {
     ec = salticidae.NewEventContext()
+    err := salticidae.NewError()
+
     alice_addr := salticidae.NewAddrFromIPPortString("127.0.0.1:12345")
     bob_addr := salticidae.NewAddrFromIPPortString("127.0.0.1:12346")
 
@@ -137,11 +146,15 @@ func main() {
     alice.net.Start()
     bob.net.Start()
 
-    alice.net.Listen(alice_addr)
-    bob.net.Listen(bob_addr)
+    alice.net.Listen(alice_addr, &err)
+    checkError(&err)
+    bob.net.Listen(bob_addr, &err)
+    checkError(&err)
 
-    alice.net.Connect(bob_addr).Free()
-    bob.net.Connect(alice_addr).Free()
+    alice.net.Connect(bob_addr, &err).Free()
+    checkError(&err)
+    bob.net.Connect(alice_addr, &err).Free()
+    checkError(&err)
 
     alice_addr.Free()
     bob_addr.Free()

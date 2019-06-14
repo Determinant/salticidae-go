@@ -63,11 +63,11 @@ func NewMsgNetwork(ec EventContext, config MsgNetworkConfig) MsgNetwork {
 }
 
 func (self MsgNetwork) Free() { C.msgnetwork_free(self) }
-func (self MsgNetwork) Listen(addr NetAddr) { C.msgnetwork_listen(self, addr) }
+func (self MsgNetwork) Listen(addr NetAddr, err *Error) { C.msgnetwork_listen(self, addr, err) }
 func (self MsgNetwork) Start() { C.msgnetwork_start(self) }
 
-func (self MsgNetwork) SendMsg(msg Msg, conn MsgNetworkConn) { C.msgnetwork_send_msg(self, msg, conn) }
-func (self MsgNetwork) Connect(addr NetAddr) MsgNetworkConn { return C.msgnetwork_connect(self, addr) }
+func (self MsgNetwork) SendMsgByMove(msg Msg, conn MsgNetworkConn) { C.msgnetwork_send_msg_by_move(self, msg, conn) }
+func (self MsgNetwork) Connect(addr NetAddr, err *Error) MsgNetworkConn { return C.msgnetwork_connect(self, addr, err) }
 func (self MsgNetwork) Terminate(conn MsgNetworkConn) { C.msgnetwork_terminate(self, conn) }
 
 func (self MsgNetworkConn) Copy() MsgNetworkConn { return C.msgnetwork_conn_copy(self) }
@@ -131,7 +131,7 @@ func (self PeerNetwork) AddPeer(paddr NetAddr) { C.peernetwork_add_peer(self, pa
 
 func (self PeerNetwork) HasPeer(paddr NetAddr) bool { return bool(C.peernetwork_has_peer(self, paddr)) }
 
-func (self PeerNetwork) GetPeerConn(paddr NetAddr) PeerNetworkConn { return C.peernetwork_get_peer_conn(self, paddr) }
+func (self PeerNetwork) GetPeerConn(paddr NetAddr, err *Error) PeerNetworkConn { return C.peernetwork_get_peer_conn(self, paddr, err) }
 
 func (self PeerNetwork) AsMsgNetwork() MsgNetwork { return C.peernetwork_as_msgnetwork(self) }
 
@@ -148,4 +148,4 @@ func (self PeerNetwork) MulticastMsgByMove(_moved_msg Msg, paddrs []NetAddr) {
     C.peernetwork_multicast_msg_by_move(self, _moved_msg, na)
 }
 
-func (self PeerNetwork) Listen(listenAddr NetAddr) { C.peernetwork_listen(self, listenAddr) }
+func (self PeerNetwork) Listen(listenAddr NetAddr, err *Error) { C.peernetwork_listen(self, listenAddr, err) }

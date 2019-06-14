@@ -26,6 +26,7 @@ import "C"
 import (
     "github.com/Determinant/salticidae-go"
     "math/rand"
+    "os"
     "fmt"
     "sync"
     "unsafe"
@@ -68,6 +69,13 @@ func msgAckUnserialize(msg salticidae.Msg) salticidae.UInt256 {
     hash.Unserialize(p)
     p.Free()
     return hash
+}
+
+func checkError(err *salticidae.Error) {
+    if err.GetCode() != 0 {
+        fmt.Printf("error during a sync call: %s\n", salticidae.StrError(err.GetCode()))
+        os.Exit(1)
+    }
 }
 
 type TestContext struct {
@@ -133,8 +141,7 @@ func sendRand(size int, app *AppContext, conn salticidae.MsgNetworkConn) {
         salticidae.UInt256(tc.hash).Free()
     }
     tc.hash = hash
-    app.net.AsMsgNetwork().SendMsg(msg, conn)
-    msg.Free()
+    app.net.AsMsgNetwork().SendMsgByMove(msg, conn)
 }
 
 var apps []AppContext
@@ -165,9 +172,8 @@ func onReceiveRand(_msg *C.struct_msg_t, _conn *C.struct_msgnetwork_conn_t, user
     conn := salticidae.MsgNetworkConn(_conn)
     net := conn.GetNet()
     ack := msgAckSerialize(hash)
-    net.SendMsg(ack, conn)
     hash.Free()
-    ack.Free()
+    net.SendMsgByMove(ack, conn)
 }
 
 //export onReceiveAck
@@ -287,8 +293,9 @@ func main() {
     for i, _ := range apps {
         app_id := i
         go func() {
+            err := salticidae.NewError()
             a := &apps[app_id]
-            a.net.Listen(a.addr)
+            a.net.Listen(a.addr, &err)
             for _, addr := range addrs {
                 if !addr.IsEq(a.addr) {
                     a.net.AddPeer(addr)
