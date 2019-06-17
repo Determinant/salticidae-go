@@ -87,17 +87,6 @@ type TestContext struct {
     ncompleted int
 }
 
-func (self TestContext) Free() {
-    if self.timer != nil {
-        C.free(unsafe.Pointer(self.timer_ctx))
-    }
-}
-
-func (self AppContext) Free() {
-    for _, tc:= range self.tc {
-        tc.Free()
-    }
-}
 
 type AppContext struct {
     addr salticidae.NetAddr
@@ -105,6 +94,14 @@ type AppContext struct {
     net salticidae.PeerNetwork
     tcall salticidae.ThreadCall
     tc map[uint64] *TestContext
+}
+
+func (self AppContext) Free() {
+    for _, tc := range self.tc {
+        if tc.timer != nil {
+            C.free(unsafe.Pointer(tc.timer_ctx))
+        }
+    }
 }
 
 func NewTestContext() TestContext {
@@ -157,11 +154,9 @@ func onTimeout(_ *C.timerev_t, userdata unsafe.Pointer) {
 //export onReceiveRand
 func onReceiveRand(_msg *C.struct_msg_t, _conn *C.struct_msgnetwork_conn_t, userdata unsafe.Pointer) {
     msg := salticidae.MsgFromC(salticidae.CMsg(_msg))
-    bytes := msgRandUnserialize(msg)
-    hash := bytes.GetHash()
     conn := salticidae.MsgNetworkConnFromC(salticidae.CMsgNetworkConn(_conn))
     net := conn.GetNet()
-    ack := msgAckSerialize(hash)
+    ack := msgAckSerialize(msgRandUnserialize(msg).GetHash())
     net.SendMsgByMove(ack, conn)
 }
 
@@ -175,7 +170,6 @@ func onReceiveAck(_msg *C.struct_msg_t, _conn *C.struct_msgnetwork_conn_t, userd
     tc := app.getTC(addr)
 
     if !hash.IsEq(tc.hash) {
-        //fmt.Printf("%s %s\n", hash.GetHex(), tc.hash.GetHex())
         panic("corrupted I/O!")
     }
 

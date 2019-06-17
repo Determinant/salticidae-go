@@ -6,7 +6,7 @@ import "C"
 import "runtime"
 
 type byteArray struct {
-    inner *C.struct_bytearray_t
+    inner *C.bytearray_t
 }
 type ByteArray = *byteArray
 
@@ -25,7 +25,7 @@ func NewByteArrayMovedFromDataStream(src DataStream) ByteArray {
 }
 
 type dataStream struct {
-    inner *C.struct_datastream_t
+    inner *C.datastream_t
 }
 
 type DataStream = *dataStream

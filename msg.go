@@ -5,11 +5,11 @@ package salticidae
 import "C"
 import "runtime"
 
-type CMsg = *C.struct_msg_t
+type CMsg = *C.msg_t
 type msg struct { inner CMsg }
 type Msg = *msg
 
-func MsgFromC(ptr *C.struct_msg_t) Msg { return &msg{ inner: ptr } }
+func MsgFromC(ptr *C.msg_t) Msg { return &msg{ inner: ptr } }
 
 func NewMsgMovedFromByteArray(opcode Opcode, _moved_payload ByteArray) Msg {
     res := &msg{ inner: C.msg_new_moved_from_bytearray(C._opcode_t(opcode), _moved_payload.inner) }

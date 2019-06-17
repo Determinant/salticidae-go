@@ -115,7 +115,6 @@ func (self MsgNetwork) RegErrorHandler(callback MsgNetworkErrorCallback, userdat
     C.msgnetwork_reg_error_handler(self.inner, callback, userdata)
 }
 
-
 func (self MsgNetworkConn) Copy() MsgNetworkConn {
     res := MsgNetworkConnFromC(C.msgnetwork_conn_copy(self.inner))
     runtime.SetFinalizer(res, func(self MsgNetworkConn) { self.free() })
@@ -239,4 +238,10 @@ func (self PeerNetwork) MulticastMsgByMove(_moved_msg Msg, paddrs []NetAddr) {
 
 func (self PeerNetwork) Listen(listenAddr NetAddr, err *Error) {
     C.peernetwork_listen(self.inner, listenAddr.inner, err)
+}
+
+type MsgNetworkUnknownPeerCallback = C.msgnetwork_unknown_peer_callback_t
+
+func (self PeerNetwork) RegUnknownPeerHandler(callback MsgNetworkUnknownPeerCallback, userdata rawptr_t) {
+    C.peernetwork_reg_unknown_peer_handler(self.inner, callback, userdata)
 }
