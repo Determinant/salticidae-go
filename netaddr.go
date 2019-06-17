@@ -67,7 +67,7 @@ func (self NetAddr) GetPort() uint16 { return uint16(C.netaddr_get_port(self.inn
 
 // Make a copy of the object. This is required if you want to keep the NetAddr
 // returned (or passed as a callback parameter) by other salticidae objects
-// (such like MsgNetwork/PeerNetwork).
+// (such like MsgNetwork/PeerNetwork), unless the function returns a moved object.
 func (self NetAddr) Copy() NetAddr {
     res := &netAddr{ inner: C.netaddr_copy(self.inner) }
     runtime.SetFinalizer(res, func(self NetAddr) { self.free() })
