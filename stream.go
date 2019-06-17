@@ -30,16 +30,26 @@ func NewByteArrayMovedFromDataStream(src DataStream) ByteArray {
     return res
 }
 
+// The C pointer to a DataStream object.
+type CDataStream = *C.datastream_t
 type dataStream struct {
-    inner *C.datastream_t
+    inner CDataStream
+    attached map[uintptr]interface{}
 }
 
 // Stream of binary data.
 type DataStream = *dataStream
 
+func DataStreamFromC(ptr CDataStream) DataStream {
+    return &dataStream{
+        inner: ptr,
+        attached: make(map[uintptr]interface{}),
+    }
+}
+
 // Create an empty DataStream.
 func NewDataStream() DataStream {
-    res := &dataStream{ inner: C.datastream_new() }
+    res := DataStreamFromC(C.datastream_new())
     runtime.SetFinalizer(res, func(self DataStream) { self.free() })
     return res
 }
@@ -49,9 +59,9 @@ func NewDataStreamFromBytes(bytes []byte) (res DataStream) {
     size := len(bytes)
     if size > 0 {
         base := (*C.uint8_t)(&bytes[0])
-        res = &dataStream{ inner: C.datastream_new_from_bytes(base, C.size_t(size)) }
+        res = DataStreamFromC(C.datastream_new_from_bytes(base, C.size_t(size)))
     } else {
-        res = &dataStream{ inner: C.datastream_new() }
+        res = DataStreamFromC(C.datastream_new())
     }
     runtime.SetFinalizer(res, func(self DataStream) { self.free() })
     return
@@ -59,9 +69,12 @@ func NewDataStreamFromBytes(bytes []byte) (res DataStream) {
 
 func (self DataStream) free() { C.datastream_free(self.inner) }
 
+func (self DataStream) attach(ptr rawptr_t, obj interface{}) { self.attached[uintptr(ptr)] = obj }
+func (self DataStream) detach(ptr rawptr_t) { delete(self.attached, uintptr(ptr)) }
+
 // Make a copy of the object.
 func (self DataStream) Copy() DataStream {
-    res := &dataStream{ inner: C.datastream_copy(self.inner) }
+    res := DataStreamFromC(C.datastream_copy(self.inner))
     runtime.SetFinalizer(res, func(self DataStream) { self.free() })
     return res
 }
@@ -128,16 +141,19 @@ type dataStreamBytes struct {
 type DataStreamBytes = *dataStreamBytes
 
 func (self DataStreamBytes) Get() []byte { return self.bytes }
+func (self DataStreamBytes) Release() { self.ds.detach(rawptr_t(self)) }
 
 // Get the given length of preceeding bytes from the stream as a byte slice by
 // consuming the stream. Notice this function does not copy the bytes, so the
 // slice is only valid during the lifetime of DataStreamBytes handle.
 func (self DataStream) GetDataInPlace(length int) DataStreamBytes {
     base := C.datastream_get_data_inplace(self.inner, C.size_t(length))
-    return &dataStreamBytes{
+    res := &dataStreamBytes{
         bytes: C.GoBytes(rawptr_t(base), C.int(length)),
         ds: self,
     }
+    self.attach(rawptr_t(res), res)
+    return res
 }
 
 type uint256 struct {

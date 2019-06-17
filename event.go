@@ -5,7 +5,7 @@ package salticidae
 import "C"
 import "runtime"
 
-// The C pointer type for an EventContext handle
+// The C pointer type for an EventContext handle.
 type CEventContext = *C.eventcontext_t
 type eventContext struct {
     inner CEventContext

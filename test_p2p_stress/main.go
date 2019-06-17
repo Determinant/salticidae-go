@@ -54,7 +54,7 @@ func msgRandSerialize(size int) (salticidae.Msg, salticidae.UInt256) {
 }
 
 func msgRandUnserialize(msg salticidae.Msg) salticidae.DataStream {
-    return msg.ConsumePayload()
+    return msg.GetPayloadByMove()
 }
 
 func msgAckSerialize(hash salticidae.UInt256) salticidae.Msg {
@@ -66,7 +66,7 @@ func msgAckSerialize(hash salticidae.UInt256) salticidae.Msg {
 }
 
 func msgAckUnserialize(msg salticidae.Msg) salticidae.UInt256 {
-    p := msg.ConsumePayload()
+    p := msg.GetPayloadByMove()
     hash := salticidae.NewUInt256()
     hash.Unserialize(p)
     return hash

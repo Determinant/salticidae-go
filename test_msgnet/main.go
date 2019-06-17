@@ -34,10 +34,10 @@ func msgHelloSerialize(name string, text string) salticidae.Msg {
 }
 
 func msgHelloUnserialize(msg salticidae.Msg) (name string, text string) {
-    p := msg.ConsumePayload()
-    length := binary.LittleEndian.Uint32(p.GetDataInPlace(4))
-    name = string(p.GetDataInPlace(int(length)))
-    text = string(p.GetDataInPlace(p.Size()))
+    p := msg.GetPayloadByMove()
+    t := p.GetDataInPlace(4); length := binary.LittleEndian.Uint32(t.Get()); t.Release()
+    t = p.GetDataInPlace(int(length)); name = string(t.Get()); t.Release()
+    t = p.GetDataInPlace(p.Size()); text = string(t.Get()); t.Release()
     return
 }
 
