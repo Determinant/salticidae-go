@@ -1,6 +1,7 @@
 package main
 
 // #cgo CFLAGS: -I${SRCDIR}/../salticidae/include/
+// #cgo LDFLAGS: ${SRCDIR}/../salticidae/libsalticidae.so -Wl,-rpath=${SRCDIR}/salticidae/
 // #include <stdlib.h>
 // #include <arpa/inet.h>
 // #include "salticidae/network.h"
@@ -68,7 +69,6 @@ func msgAckUnserialize(msg salticidae.Msg) salticidae.UInt256 {
     p := msg.ConsumePayload()
     hash := salticidae.NewUInt256()
     hash.Unserialize(p)
-    p.Free()
     return hash
 }
 
@@ -89,11 +89,13 @@ type TestContext struct {
 
 func (self TestContext) Free() {
     if self.timer != nil {
-        self.timer.Free()
         C.free(unsafe.Pointer(self.timer_ctx))
     }
-    if self.hash != nil {
-        self.hash.Free()
+}
+
+func (self AppContext) Free() {
+    for _, tc:= range self.tc {
+        tc.Free()
     }
 }
 
@@ -103,16 +105,6 @@ type AppContext struct {
     net salticidae.PeerNetwork
     tcall salticidae.ThreadCall
     tc map[uint64] *TestContext
-}
-
-func (self AppContext) Free() {
-    self.addr.Free()
-    self.net.Free()
-    self.tcall.Free()
-    for _, tc:= range self.tc {
-        tc.Free()
-    }
-    self.ec.Free()
 }
 
 func NewTestContext() TestContext {
@@ -137,10 +129,6 @@ func sendRand(size int, app *AppContext, conn salticidae.MsgNetworkConn) {
     msg, hash := msgRandSerialize(size)
     addr := conn.GetAddr()
     tc := app.getTC(addr2id(addr))
-    addr.Free()
-    if tc.hash != nil {
-        salticidae.UInt256(tc.hash).Free()
-    }
     tc.hash = hash
     app.net.AsMsgNetwork().SendMsgByMove(msg, conn)
 }
@@ -149,6 +137,7 @@ var apps []AppContext
 var threads sync.WaitGroup
 var segBuffSize = 4096
 var ec salticidae.EventContext
+var ids []*C.int
 
 //export onTimeout
 func onTimeout(_ *C.timerev_t, userdata unsafe.Pointer) {
@@ -156,7 +145,9 @@ func onTimeout(_ *C.timerev_t, userdata unsafe.Pointer) {
     app := &apps[ctx.app_id]
     tc := app.getTC(uint64(ctx.addr_id))
     tc.ncompleted++
-    app.net.AsMsgNetwork().Terminate(salticidae.MsgNetworkConn(ctx.conn))
+    app.net.AsMsgNetwork().Terminate(
+        salticidae.MsgNetworkConnFromC(
+            salticidae.CMsgNetworkConn(ctx.conn)))
     var s string
     for addr_id, v := range app.tc {
         s += fmt.Sprintf(" %d(%d)", C.ntohs(C.ushort(addr_id >> 32)), v.ncompleted)
@@ -166,33 +157,29 @@ func onTimeout(_ *C.timerev_t, userdata unsafe.Pointer) {
 
 //export onReceiveRand
 func onReceiveRand(_msg *C.struct_msg_t, _conn *C.struct_msgnetwork_conn_t, userdata unsafe.Pointer) {
-    msg := salticidae.Msg(_msg)
+    msg := salticidae.MsgFromC(salticidae.CMsg(_msg))
     bytes := msgRandUnserialize(msg)
     hash := bytes.GetHash()
-    bytes.Free()
-    conn := salticidae.MsgNetworkConn(_conn)
+    conn := salticidae.MsgNetworkConnFromC(salticidae.CMsgNetworkConn(_conn))
     net := conn.GetNet()
     ack := msgAckSerialize(hash)
-    hash.Free()
     net.SendMsgByMove(ack, conn)
 }
 
 //export onReceiveAck
 func onReceiveAck(_msg *C.struct_msg_t, _conn *C.struct_msgnetwork_conn_t, userdata unsafe.Pointer) {
-    hash := msgAckUnserialize(salticidae.Msg(_msg))
+    hash := msgAckUnserialize(salticidae.MsgFromC(salticidae.CMsg(_msg)))
     id := *(* int)(userdata)
     app := &apps[id]
-    conn := salticidae.MsgNetworkConn(_conn)
+    conn := salticidae.MsgNetworkConnFromC(salticidae.CMsgNetworkConn(_conn))
     _addr := conn.GetAddr()
     addr := addr2id(_addr)
-    _addr.Free()
     tc := app.getTC(addr)
 
     if !hash.IsEq(tc.hash) {
         //fmt.Printf("%s %s\n", hash.GetHex(), tc.hash.GetHex())
         panic("corrupted I/O!")
     }
-    hash.Free()
 
     if tc.state == segBuffSize * 2 {
         sendRand(tc.state, app, conn)
@@ -200,10 +187,9 @@ func onReceiveAck(_msg *C.struct_msg_t, _conn *C.struct_msgnetwork_conn_t, userd
         ctx := C.timeout_callback_context_new()
         ctx.app_id = C.int(id)
         ctx.addr_id = C.uint64_t(addr)
-        ctx.conn = (*C.struct_msgnetwork_conn_t)(conn.Copy())
+        ctx.conn = C.msgnetwork_conn_copy(_conn)
         if tc.timer != nil {
-            tc.timer.Free()
-            salticidae.MsgNetworkConn(tc.timer_ctx.conn).Free()
+            C.msgnetwork_conn_free(tc.timer_ctx.conn)
             C.free(unsafe.Pointer(tc.timer_ctx))
         }
         tc.timer = salticidae.NewTimerEvent(app.ec, salticidae.TimerEventCallback(C.onTimeout), unsafe.Pointer(ctx))
@@ -221,14 +207,13 @@ func onReceiveAck(_msg *C.struct_msg_t, _conn *C.struct_msgnetwork_conn_t, userd
 
 //export connHandler
 func connHandler(_conn *C.struct_msgnetwork_conn_t, connected C.bool, userdata unsafe.Pointer) {
-    conn := salticidae.MsgNetworkConn(_conn)
+    conn := salticidae.MsgNetworkConnFromC(salticidae.CMsgNetworkConn(_conn))
     id := *(*int)(userdata)
     app := &apps[id]
     if connected {
         if conn.GetMode() == salticidae.CONN_MODE_ACTIVE {
             addr := conn.GetAddr()
             tc := app.getTC(addr2id(addr))
-            addr.Free()
             tc.state = 1
             fmt.Printf("INFO: increasing phase\n")
             sendRand(tc.state, app, conn)
@@ -246,7 +231,7 @@ func errorHandler(_err *C.struct_SalticidaeCError, fatal C.bool, _ unsafe.Pointe
 
 //export onStopLoop
 func onStopLoop(_ *C.threadcall_handle_t, userdata unsafe.Pointer) {
-    ec := salticidae.EventContext(userdata)
+    ec := apps[*(*int)(userdata)].ec
     ec.Stop()
 }
 
@@ -256,7 +241,7 @@ func onTerm(_ C.int, _ unsafe.Pointer) {
         a := &apps[i]
         a.tcall.AsyncCall(
             salticidae.ThreadCallCallback(C.onStopLoop),
-            unsafe.Pointer(a.ec))
+            unsafe.Pointer(ids[i]))
     }
     threads.Wait()
     ec.Stop()
@@ -277,7 +262,7 @@ func main() {
     netconfig.ConnTimeout(5)
     netconfig.PingPeriod(2)
     apps = make([]AppContext, len(addrs))
-    ids := make([](*C.int), len(addrs))
+    ids = make([](*C.int), len(addrs))
     for i, addr := range addrs {
         ec := salticidae.NewEventContext()
         apps[i] = AppContext {
@@ -297,7 +282,6 @@ func main() {
         net.RegErrorHandler(salticidae.MsgNetworkErrorCallback(C.errorHandler), _i)
         net.Start()
     }
-    netconfig.Free()
 
     threads.Add(len(apps))
     for i, _ := range apps {
@@ -324,8 +308,4 @@ func main() {
     ev_term.Add(salticidae.SIGTERM)
 
     ec.Dispatch()
-
-    ev_int.Free()
-    ev_term.Free()
-    ec.Free()
 }

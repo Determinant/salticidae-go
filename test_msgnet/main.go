@@ -29,9 +29,9 @@ func msgHelloSerialize(name string, text string) salticidae.Msg {
     serialized.PutData(t)
     serialized.PutData([]byte(name))
     serialized.PutData([]byte(text))
+    s := salticidae.NewByteArrayMovedFromDataStream(serialized)
     return salticidae.NewMsgMovedFromByteArray(
-        MSG_OPCODE_HELLO,
-        salticidae.NewByteArrayMovedFromDataStream(serialized))
+        MSG_OPCODE_HELLO, s)
 }
 
 func msgHelloUnserialize(msg salticidae.Msg) (name string, text string) {
@@ -39,12 +39,12 @@ func msgHelloUnserialize(msg salticidae.Msg) (name string, text string) {
     length := binary.LittleEndian.Uint32(p.GetDataInPlace(4))
     name = string(p.GetDataInPlace(int(length)))
     text = string(p.GetDataInPlace(p.Size()))
-    p.Free()
     return
 }
 
 func msgAckSerialize() salticidae.Msg {
-    return salticidae.NewMsgMovedFromByteArray(MSG_OPCODE_ACK, salticidae.NewByteArray())
+    s := salticidae.NewByteArray()
+    return salticidae.NewMsgMovedFromByteArray(MSG_OPCODE_ACK, s)
 }
 
 func checkError(err *salticidae.Error) {
@@ -71,8 +71,8 @@ func onTerm(_ C.int, _ unsafe.Pointer) {
 
 //export onReceiveHello
 func onReceiveHello(_msg *C.struct_msg_t, _conn *C.struct_msgnetwork_conn_t, _ unsafe.Pointer) {
-    msg := salticidae.Msg(_msg)
-    conn := salticidae.MsgNetworkConn(_conn)
+    msg := salticidae.MsgFromC(salticidae.CMsg(_msg))
+    conn := salticidae.MsgNetworkConnFromC(salticidae.CMsgNetworkConn(_conn))
     net := conn.GetNet()
     myName := bob.name
     if net == alice.net {
@@ -86,7 +86,7 @@ func onReceiveHello(_msg *C.struct_msg_t, _conn *C.struct_msgnetwork_conn_t, _ u
 
 //export onReceiveAck
 func onReceiveAck(_ *C.struct_msg_t, _conn *C.struct_msgnetwork_conn_t, _ unsafe.Pointer) {
-    conn := salticidae.MsgNetworkConn(_conn)
+    conn := salticidae.MsgNetworkConnFromC(salticidae.CMsgNetworkConn(_conn))
     net := conn.GetNet()
     name := bob.name
     if net == alice.net {
@@ -97,18 +97,18 @@ func onReceiveAck(_ *C.struct_msg_t, _conn *C.struct_msgnetwork_conn_t, _ unsafe
 
 //export connHandler
 func connHandler(_conn *C.struct_msgnetwork_conn_t, connected C.bool, _ unsafe.Pointer) {
-    conn := salticidae.MsgNetworkConn(_conn)
+    conn := salticidae.MsgNetworkConnFromC(salticidae.CMsgNetworkConn(_conn))
     net := conn.GetNet()
-    n := &bob
+    n := bob
     if net == alice.net {
-        n = &alice
+        n = alice
     }
     name := n.name
     if connected {
         if conn.GetMode() == salticidae.CONN_MODE_ACTIVE {
-            fmt.Printf("[%s] Connected, sending hello.", name)
+            fmt.Printf("[%s] Connected, sending hello.\n", name)
             hello := msgHelloSerialize(name, "Hello there!")
-            n.net.SendMsgByMove(hello, conn)
+            (*n.net).SendMsgByMove(hello, conn)
         } else {
             fmt.Printf("[%s] Accepted, waiting for greetings.\n", name)
         }
@@ -116,8 +116,7 @@ func connHandler(_conn *C.struct_msgnetwork_conn_t, connected C.bool, _ unsafe.P
         fmt.Printf("[%s] Disconnected, retrying.\n", name)
         addr := conn.GetAddr()
         err := salticidae.NewError()
-        net.Connect(addr, &err).Free()
-        addr.Free()
+        net.Connect(addr, &err)
     }
 }
 
@@ -139,7 +138,6 @@ func genMyNet(ec salticidae.EventContext, name string) MyNet {
     n.net.RegHandler(MSG_OPCODE_ACK, salticidae.MsgNetworkMsgCallback(C.onReceiveAck), nil)
     n.net.RegConnHandler(salticidae.MsgNetworkConnCallback(C.connHandler), nil)
     n.net.RegErrorHandler(salticidae.MsgNetworkErrorCallback(C.errorHandler), nil)
-    netconfig.Free()
     return n
 }
 
@@ -161,13 +159,10 @@ func main() {
     bob.net.Listen(bob_addr, &err)
     checkError(&err)
 
-    alice.net.Connect(bob_addr, &err).Free()
+    alice.net.Connect(bob_addr, &err)
     checkError(&err)
-    bob.net.Connect(alice_addr, &err).Free()
+    bob.net.Connect(alice_addr, &err)
     checkError(&err)
-
-    alice_addr.Free()
-    bob_addr.Free()
 
     ev_int := salticidae.NewSigEvent(ec, salticidae.SigEventCallback(C.onTerm), nil)
     ev_int.Add(salticidae.SIGINT)
@@ -175,10 +170,4 @@ func main() {
     ev_term.Add(salticidae.SIGTERM)
 
     ec.Dispatch()
-
-    alice.net.Free()
-    bob.net.Free()
-    ev_int.Free()
-    ev_term.Free()
-    ec.Free()
 }
