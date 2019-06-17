@@ -5,11 +5,13 @@ package salticidae
 import "C"
 import "runtime"
 
-type netAddr struct {
-    inner *C.netaddr_t
-}
-
+type CNetAddr = *C.netaddr_t
+type netAddr struct { inner CNetAddr }
 type NetAddr = *netAddr
+
+func NetAddrFromC(ptr CNetAddr) NetAddr {
+    return &netAddr{ inner: ptr }
+}
 
 type netAddrArray struct {
     inner *C.netaddr_array_t
@@ -48,5 +50,11 @@ func (self NetAddr) IsNull() bool { return bool(C.netaddr_is_null(self.inner)) }
 func (self NetAddr) GetIP() uint32 { return uint32(C.netaddr_get_ip(self.inner)) }
 
 func (self NetAddr) GetPort() uint16 { return uint16(C.netaddr_get_port(self.inner)) }
+
+func (self NetAddr) Copy() NetAddr {
+    res := &netAddr{ inner: C.netaddr_copy(self.inner) }
+    runtime.SetFinalizer(res, func(self NetAddr) { self.free() })
+    return res
+}
 
 func (self NetAddrArray) free() { C.netaddr_array_free(self.inner) }

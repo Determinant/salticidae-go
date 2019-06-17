@@ -127,8 +127,7 @@ func (self AppContext) getTC(addr_id uint64) (_tc *TestContext) {
 
 func sendRand(size int, app *AppContext, conn salticidae.MsgNetworkConn) {
     msg, hash := msgRandSerialize(size)
-    addr := conn.GetAddr()
-    tc := app.getTC(addr2id(addr))
+    tc := app.getTC(addr2id(conn.GetAddr()))
     tc.hash = hash
     app.net.AsMsgNetwork().SendMsgByMove(msg, conn)
 }
@@ -172,8 +171,7 @@ func onReceiveAck(_msg *C.struct_msg_t, _conn *C.struct_msgnetwork_conn_t, userd
     id := *(* int)(userdata)
     app := &apps[id]
     conn := salticidae.MsgNetworkConnFromC(salticidae.CMsgNetworkConn(_conn))
-    _addr := conn.GetAddr()
-    addr := addr2id(_addr)
+    addr := addr2id(conn.GetAddr())
     tc := app.getTC(addr)
 
     if !hash.IsEq(tc.hash) {
@@ -212,8 +210,7 @@ func connHandler(_conn *C.struct_msgnetwork_conn_t, connected C.bool, userdata u
     app := &apps[id]
     if connected {
         if conn.GetMode() == salticidae.CONN_MODE_ACTIVE {
-            addr := conn.GetAddr()
-            tc := app.getTC(addr2id(addr))
+            tc := app.getTC(addr2id(conn.GetAddr()))
             tc.state = 1
             fmt.Printf("INFO: increasing phase\n")
             sendRand(tc.state, app, conn)
@@ -296,6 +293,7 @@ func main() {
                 }
             }
             a.ec.Dispatch()
+            a.net.AsMsgNetwork().Stop()
             a.Free()
             C.free(unsafe.Pointer(ids[app_id]))
             threads.Done()

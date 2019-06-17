@@ -114,9 +114,8 @@ func connHandler(_conn *C.struct_msgnetwork_conn_t, connected C.bool, _ unsafe.P
         }
     } else {
         fmt.Printf("[%s] Disconnected, retrying.\n", name)
-        addr := conn.GetAddr()
         err := salticidae.NewError()
-        net.Connect(addr, &err)
+        net.Connect(conn.GetAddr(), &err)
     }
 }
 
@@ -170,4 +169,6 @@ func main() {
     ev_term.Add(salticidae.SIGTERM)
 
     ec.Dispatch()
+    alice.net.Stop()
+    bob.net.Stop()
 }

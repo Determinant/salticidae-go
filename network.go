@@ -25,7 +25,7 @@ type MsgNetworkConnMode = C.msgnetwork_conn_mode_t
 func (self MsgNetworkConn) free() { C.msgnetwork_conn_free(self.inner) }
 
 func (self MsgNetworkConn) GetNet() MsgNetwork {
-    return &msgNetwork{ inner: C.msgnetwork_conn_get_net(self.inner) }
+    return MsgNetworkFromC(C.msgnetwork_conn_get_net(self.inner))
 }
 
 var (
@@ -39,9 +39,7 @@ func (self MsgNetworkConn) GetMode() MsgNetworkConnMode {
 }
 
 func (self MsgNetworkConn) GetAddr() NetAddr {
-    res := &netAddr{ inner: C.msgnetwork_conn_get_addr(self.inner) }
-    runtime.SetFinalizer(res, func(self NetAddr) { self.free() })
-    return res
+    return NetAddrFromC(C.msgnetwork_conn_get_addr(self.inner))
 }
 
 type CMsgNetworkConfig = *C.msgnetwork_config_t
@@ -53,7 +51,7 @@ func MsgNetworkConfigFromC(ptr CMsgNetworkConfig) MsgNetworkConfig {
 }
 
 func NewMsgNetworkConfig() MsgNetworkConfig {
-    res := &msgNetworkConfig{ inner: C.msgnetwork_config_new() }
+    res := MsgNetworkConfigFromC(C.msgnetwork_config_new())
     runtime.SetFinalizer(res, func(self MsgNetworkConfig) { self.free() })
     return res
 }
@@ -85,7 +83,7 @@ func (self MsgNetworkConfig) QueueCapacity(capacity int) {
 }
 
 func NewMsgNetwork(ec EventContext, config MsgNetworkConfig) MsgNetwork {
-    res := &msgNetwork { inner: C.msgnetwork_new(ec.inner, config.inner) }
+    res := MsgNetworkFromC(C.msgnetwork_new(ec.inner, config.inner))
     ec.attach(rawptr_t(res.inner), res)
     runtime.SetFinalizer(res, func(self MsgNetwork) { self.free() })
     return res
@@ -94,10 +92,11 @@ func NewMsgNetwork(ec EventContext, config MsgNetworkConfig) MsgNetwork {
 func (self MsgNetwork) free() { C.msgnetwork_free(self.inner) }
 func (self MsgNetwork) Listen(addr NetAddr, err *Error) { C.msgnetwork_listen(self.inner, addr.inner, err) }
 func (self MsgNetwork) Start() { C.msgnetwork_start(self.inner) }
+func (self MsgNetwork) Stop() { C.msgnetwork_stop(self.inner) }
 
 func (self MsgNetwork) SendMsgByMove(msg Msg, conn MsgNetworkConn) { C.msgnetwork_send_msg_by_move(self.inner, msg.inner, conn.inner) }
 func (self MsgNetwork) Connect(addr NetAddr, err *Error) MsgNetworkConn {
-    res := &msgNetworkConn { inner: C.msgnetwork_connect(self.inner, addr.inner, err) }
+    res := MsgNetworkConnFromC(C.msgnetwork_connect(self.inner, addr.inner, err))
     runtime.SetFinalizer(res, func(self MsgNetworkConn) { self.free() })
     return res
 }
@@ -118,7 +117,7 @@ func (self MsgNetwork) RegErrorHandler(callback MsgNetworkErrorCallback, userdat
 
 
 func (self MsgNetworkConn) Copy() MsgNetworkConn {
-    res := &msgNetworkConn { inner: C.msgnetwork_conn_copy(self.inner) }
+    res := MsgNetworkConnFromC(C.msgnetwork_conn_copy(self.inner))
     runtime.SetFinalizer(res, func(self MsgNetworkConn) { self.free() })
     return res
 }
@@ -161,7 +160,7 @@ func PeerNetworkConfigFromC(ptr CPeerNetworkConfig) PeerNetworkConfig {
 }
 
 func NewPeerNetworkConfig() PeerNetworkConfig {
-    res := &peerNetworkConfig { inner: C.peernetwork_config_new() }
+    res := PeerNetworkConfigFromC(C.peernetwork_config_new())
     runtime.SetFinalizer(res, func(self PeerNetworkConfig) { self.free() })
     return res
 }
@@ -185,11 +184,11 @@ func (self PeerNetworkConfig) IdMode(mode PeerNetworkIdMode) {
 }
 
 func (self PeerNetworkConfig) AsMsgNetworkConfig() MsgNetworkConfig {
-    return &msgNetworkConfig { inner: C.peernetwork_config_as_msgnetwork_config(self.inner) }
+    return MsgNetworkConfigFromC(C.peernetwork_config_as_msgnetwork_config(self.inner))
 }
 
 func NewPeerNetwork(ec EventContext, config PeerNetworkConfig) PeerNetwork {
-    res := &peerNetwork { inner: C.peernetwork_new(ec.inner, config.inner) }
+    res := PeerNetworkFromC(C.peernetwork_new(ec.inner, config.inner))
     ec.attach(rawptr_t(res.inner), res)
     runtime.SetFinalizer(res, func(self PeerNetwork) { self.free() })
     return res
@@ -202,21 +201,27 @@ func (self PeerNetwork) AddPeer(paddr NetAddr) { C.peernetwork_add_peer(self.inn
 func (self PeerNetwork) HasPeer(paddr NetAddr) bool { return bool(C.peernetwork_has_peer(self.inner, paddr.inner)) }
 
 func (self PeerNetwork) GetPeerConn(paddr NetAddr, err *Error) PeerNetworkConn {
-    res := &peerNetworkConn{ inner: C.peernetwork_get_peer_conn(self.inner, paddr.inner, err) }
+    res := PeerNetworkConnFromC(C.peernetwork_get_peer_conn(self.inner, paddr.inner, err))
     runtime.SetFinalizer(res, func(self PeerNetworkConn) { self.free() })
     return res
 }
 
-func (self PeerNetwork) AsMsgNetwork() MsgNetwork { return &msgNetwork{ inner: C.peernetwork_as_msgnetwork(self.inner) } }
+func (self PeerNetwork) AsMsgNetwork() MsgNetwork {
+    return MsgNetworkFromC(C.peernetwork_as_msgnetwork(self.inner))
+}
+
+func (self MsgNetwork) AsPeerNetworkUnsafe() PeerNetwork {
+    return PeerNetworkFromC(C.msgnetwork_as_peernetwork_unsafe(self.inner))
+}
 
 func NewMsgNetworkConnFromPeerNetWorkConn(conn PeerNetworkConn) MsgNetworkConn {
-    res := &msgNetworkConn{ inner: C.msgnetwork_conn_new_from_peernetwork_conn(conn.inner) }
+    res := MsgNetworkConnFromC(C.msgnetwork_conn_new_from_peernetwork_conn(conn.inner))
     runtime.SetFinalizer(res, func(self MsgNetworkConn) { self.free() })
     return res
 }
 
 func (self PeerNetworkConn) Copy() PeerNetworkConn {
-    res := &peerNetworkConn { inner: C.peernetwork_conn_copy(self.inner) }
+    res := PeerNetworkConnFromC(C.peernetwork_conn_copy(self.inner))
     runtime.SetFinalizer(res, func(self PeerNetworkConn) { self.free() })
     return res
 }
