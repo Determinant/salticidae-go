@@ -50,12 +50,10 @@ func NewDataStreamFromBytes(bytes []byte) (res DataStream) {
 
 func (self DataStream) free() { C.datastream_free(self.inner) }
 
-func (self DataStream) AssignByCopy(src DataStream) {
-    C.datastream_assign_by_copy(self.inner, src.inner)
-}
-
-func (self DataStream) AssignByMove(src DataStream) {
-    C.datastream_assign_by_move(self.inner, src.inner)
+func (self DataStream) Copy() {
+    res := &dataStream{ inner: C.datastream_copy(self.inner, src.inner) }
+    runtime.SetFinalizer(res, func(self DataStream) { self.free() })
+    return res
 }
 
 // TODO: datastream_data

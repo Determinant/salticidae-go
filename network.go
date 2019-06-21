@@ -94,7 +94,14 @@ func (self MsgNetwork) Listen(addr NetAddr, err *Error) { C.msgnetwork_listen(se
 func (self MsgNetwork) Start() { C.msgnetwork_start(self.inner) }
 func (self MsgNetwork) Stop() { C.msgnetwork_stop(self.inner) }
 
-func (self MsgNetwork) SendMsgByMove(msg Msg, conn MsgNetworkConn) { C.msgnetwork_send_msg_by_move(self.inner, msg.inner, conn.inner) }
+func (self MsgNetwork) SendMsg(msg Msg, conn MsgNetworkConn) {
+    C.msgnetwork_send_msg(self.inner, msg.inner, conn.inner)
+}
+
+func (self MsgNetwork) SendMsgDeferredByMove(msg Msg, conn MsgNetworkConn) {
+    C.msgnetwork_send_msg_deferred_by_move(self.inner, msg.inner, conn.inner)
+}
+
 func (self MsgNetwork) Connect(addr NetAddr, err *Error) MsgNetworkConn {
     res := MsgNetworkConnFromC(C.msgnetwork_connect(self.inner, addr.inner, err))
     runtime.SetFinalizer(res, func(self MsgNetworkConn) { self.free() })
@@ -227,17 +234,21 @@ func (self PeerNetworkConn) Copy() PeerNetworkConn {
 
 func (self PeerNetworkConn) free() { C.peernetwork_conn_free(self.inner) }
 
-func (self PeerNetwork) SendMsgByMove(_moved_msg Msg, paddr NetAddr) {
-    C.peernetwork_send_msg_by_move(self.inner, _moved_msg.inner, paddr.inner)
-}
-
-func (self PeerNetwork) MulticastMsgByMove(_moved_msg Msg, paddrs []NetAddr) {
-    na := NewAddrArrayFromAddrs(paddrs)
-    C.peernetwork_multicast_msg_by_move(self.inner, _moved_msg.inner, na.inner)
-}
-
 func (self PeerNetwork) Listen(listenAddr NetAddr, err *Error) {
     C.peernetwork_listen(self.inner, listenAddr.inner, err)
+}
+
+func (self PeerNetwork) SendMsg(msg Msg, addr NetAddr) {
+    C.peernetwork_send_msg(self.inner, msg.inner, addr.inner)
+}
+
+func (self PeerNetwork) SendMsgDeferredByMove(msg Msg, addr NetAddr) {
+    C.peernetwork_send_msg_deferred_by_move(self.inner, msg.inner, addr.inner)
+}
+
+func (self PeerNetwork) MulticastMsgByMove(msg Msg, paddrs []NetAddr) {
+    na := NewAddrArrayFromAddrs(paddrs)
+    C.peernetwork_multicast_msg_by_move(self.inner, msg.inner, na.inner)
 }
 
 type MsgNetworkUnknownPeerCallback = C.msgnetwork_unknown_peer_callback_t
