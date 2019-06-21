@@ -34,10 +34,10 @@ func msgHelloSerialize(name string, text string) salticidae.Msg {
 }
 
 func msgHelloUnserialize(msg salticidae.Msg) (name string, text string) {
-    p := msg.ConsumePayload()
-    length := binary.LittleEndian.Uint32(p.GetDataInPlace(4))
-    name = string(p.GetDataInPlace(int(length)))
-    text = string(p.GetDataInPlace(p.Size()))
+    p := msg.GetPayloadByMove()
+    t := p.GetDataInPlace(4); length := binary.LittleEndian.Uint32(t.Get()); t.Release()
+    t = p.GetDataInPlace(int(length)); name = string(t.Get()); t.Release()
+    t = p.GetDataInPlace(p.Size()); text = string(t.Get()); t.Release()
     return
 }
 
@@ -79,7 +79,7 @@ func onReceiveHello(_msg *C.struct_msg_t, _conn *C.struct_msgnetwork_conn_t, _ u
     name, text := msgHelloUnserialize(msg)
     fmt.Printf("[%s] %s says %s\n", myName, name, text)
     ack := msgAckSerialize()
-    net.SendMsgByMove(ack, conn)
+    net.SendMsg(ack, conn)
 }
 
 //export onReceiveAck
@@ -106,7 +106,7 @@ func connHandler(_conn *C.struct_msgnetwork_conn_t, connected C.bool, _ unsafe.P
         if conn.GetMode() == salticidae.CONN_MODE_ACTIVE {
             fmt.Printf("[%s] Connected, sending hello.\n", name)
             hello := msgHelloSerialize(name, "Hello there!")
-            n.net.SendMsgByMove(hello, conn)
+            n.net.SendMsg(hello, conn)
         } else {
             fmt.Printf("[%s] Accepted, waiting for greetings.\n", name)
         }

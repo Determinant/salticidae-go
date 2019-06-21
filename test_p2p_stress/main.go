@@ -54,7 +54,7 @@ func msgRandSerialize(size int) (salticidae.Msg, salticidae.UInt256) {
 }
 
 func msgRandUnserialize(msg salticidae.Msg) salticidae.DataStream {
-    return msg.ConsumePayload()
+    return msg.GetPayloadByMove()
 }
 
 func msgAckSerialize(hash salticidae.UInt256) salticidae.Msg {
@@ -66,7 +66,7 @@ func msgAckSerialize(hash salticidae.UInt256) salticidae.Msg {
 }
 
 func msgAckUnserialize(msg salticidae.Msg) salticidae.UInt256 {
-    p := msg.ConsumePayload()
+    p := msg.GetPayloadByMove()
     hash := salticidae.NewUInt256()
     hash.Unserialize(p)
     return hash
@@ -126,7 +126,7 @@ func sendRand(size int, app *AppContext, conn salticidae.MsgNetworkConn) {
     msg, hash := msgRandSerialize(size)
     tc := app.getTC(addr2id(conn.GetAddr()))
     tc.hash = hash
-    app.net.AsMsgNetwork().SendMsgByMove(msg, conn)
+    app.net.AsMsgNetwork().SendMsg(msg, conn)
 }
 
 var apps []AppContext
@@ -157,7 +157,7 @@ func onReceiveRand(_msg *C.struct_msg_t, _conn *C.struct_msgnetwork_conn_t, user
     conn := salticidae.MsgNetworkConnFromC(salticidae.CMsgNetworkConn(_conn))
     net := conn.GetNet()
     ack := msgAckSerialize(msgRandUnserialize(msg).GetHash())
-    net.SendMsgByMove(ack, conn)
+    net.SendMsg(ack, conn)
 }
 
 //export onReceiveAck
