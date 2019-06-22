@@ -240,6 +240,7 @@ func onTerm(_ C.int, _ unsafe.Pointer) {
 
 func main() {
     ec = salticidae.NewEventContext()
+    err := salticidae.NewError()
 
     var addrs []salticidae.NetAddr
     for i := 0; i < 5; i++ {
@@ -256,22 +257,23 @@ func main() {
     ids = make([](*C.int), len(addrs))
     for i, addr := range addrs {
         ec := salticidae.NewEventContext()
+        net := salticidae.NewPeerNetwork(ec, netconfig, &err); checkError(&err)
         apps[i] = AppContext {
             addr: addr,
             ec: ec,
-            net: salticidae.NewPeerNetwork(ec, netconfig),
+            net: net,
             tcall: salticidae.NewThreadCall(ec),
             tc: make(map[uint64] *TestContext),
         }
         ids[i] = (*C.int)(C.malloc(C.sizeof_int))
         *ids[i] = C.int(i)
         _i := unsafe.Pointer(ids[i])
-        net := apps[i].net.AsMsgNetwork()
-        net.RegHandler(MSG_OPCODE_RAND, salticidae.MsgNetworkMsgCallback(C.onReceiveRand), _i)
-        net.RegHandler(MSG_OPCODE_ACK, salticidae.MsgNetworkMsgCallback(C.onReceiveAck), _i)
-        net.RegConnHandler(salticidae.MsgNetworkConnCallback(C.connHandler), _i)
-        net.RegErrorHandler(salticidae.MsgNetworkErrorCallback(C.errorHandler), _i)
-        net.Start()
+        mnet := net.AsMsgNetwork()
+        mnet.RegHandler(MSG_OPCODE_RAND, salticidae.MsgNetworkMsgCallback(C.onReceiveRand), _i)
+        mnet.RegHandler(MSG_OPCODE_ACK, salticidae.MsgNetworkMsgCallback(C.onReceiveAck), _i)
+        mnet.RegConnHandler(salticidae.MsgNetworkConnCallback(C.connHandler), _i)
+        mnet.RegErrorHandler(salticidae.MsgNetworkErrorCallback(C.errorHandler), _i)
+        mnet.Start()
     }
 
     threads.Add(len(apps))
@@ -280,7 +282,7 @@ func main() {
         go func() {
             err := salticidae.NewError()
             a := &apps[app_id]
-            a.net.Listen(a.addr, &err)
+            a.net.Listen(a.addr, &err); checkError(&err)
             for _, addr := range addrs {
                 if !addr.IsEq(a.addr) {
                     a.net.AddPeer(addr)

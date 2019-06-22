@@ -1,5 +1,6 @@
 package salticidae
 
+// #include <stdlib.h>
 // #include "salticidae/network.h"
 import "C"
 import "runtime"
@@ -59,6 +60,13 @@ func (self MsgNetworkConn) GetAddr() NetAddr {
     return NetAddrFromC(C.msgnetwork_conn_get_addr(self.inner))
 }
 
+// Get the certificate of the remote end of this connection. Use Copy() to make a
+// copy of the certificate if you want to use the certificate object beyond the
+// lifetime of the connection.
+func (self MsgNetworkConn) GetPeerCert() X509 {
+    return &x509{ inner: C.msgnetwork_conn_get_peer_cert(self.inner) }
+}
+
 // Make a copy of the object. This is required if you want to keep the
 // connection passed as a callback parameter by other salticidae methods (such
 // like MsgNetwork/PeerNetwork).
@@ -95,36 +103,76 @@ func (self MsgNetworkConfig) BurstSize(size int) {
     C.msgnetwork_config_burst_size(self.inner, C.size_t(size))
 }
 
-// Maximum backlogs (see POSIX TCP backlog).
+// Set the maximum backlogs (see POSIX TCP backlog).
 func (self MsgNetworkConfig) MaxListenBacklog(backlog int) {
     C.msgnetwork_config_max_listen_backlog(self.inner, C.int(backlog))
 }
 
-// The timeout for connecting to the remote (in seconds).
+// Set the timeout for connecting to the remote (in seconds).
 func (self MsgNetworkConfig) ConnServerTimeout(timeout float64) {
     C.msgnetwork_config_conn_server_timeout(self.inner, C.double(timeout))
 }
 
-// The size for an inbound data chunk (per read() syscall).
+// Set the size for an inbound data chunk (per read() syscall).
 func (self MsgNetworkConfig) SegBuffSize(size int) {
     C.msgnetwork_config_seg_buff_size(self.inner, C.size_t(size))
 }
 
-// The number of worker threads.
+// Set the number of worker threads.
 func (self MsgNetworkConfig) NWorker(nworker int) {
     C.msgnetwork_config_nworker(self.inner, C.size_t(nworker))
 }
 
-// The capacity of the send buffer.
+// Set the capacity of the send buffer.
 func (self MsgNetworkConfig) QueueCapacity(capacity int) {
     C.msgnetwork_config_queue_capacity(self.inner, C.size_t(capacity))
 }
 
+// Specify whether to use SSL/TLS. When this flag is enabled, MsgNetwork uses
+// TLSKey (or TLSKeyFile) or TLSCert (or TLSCertFile) to setup the underlying
+// OpenSSL.
+func (self MsgNetworkConfig) EnableTLS(enabled bool) {
+    C.msgnetwork_config_enable_tls(self.inner, C.bool(enabled))
+}
+
+// Load the TLS key from a file. The file should be an unencrypted PEM file.
+// Use TLSKey() instead for more complex usage.
+func (self MsgNetworkConfig) TLSKeyFile(fname string) {
+    c_str := C.CString(fname)
+    C.msgnetwork_config_tls_key_file(self.inner, c_str)
+    C.free(rawptr_t(c_str))
+}
+
+// Load the TLS certificate from a file. The file should be an unencrypted
+// (X509) PEM file.  Use TLSCert() instead for more complex usage.
+func (self MsgNetworkConfig) TLSCertFile(fname string) {
+    c_str := C.CString(fname)
+    C.msgnetwork_config_tls_cert_file(self.inner, c_str)
+    C.free(rawptr_t(c_str))
+}
+
+// Use the given TLS key. This overrides TLSKeyFile(). pkey will be moved and
+// kept by the library. Thus, no methods of msg involving the payload should be
+// called afterwards.
+func (self MsgNetworkConfig) TLSKeyByMove(pkey PKey) {
+    C.msgnetwork_config_tls_key_by_move(self.inner, pkey.inner)
+}
+
+//// Load the TLS certificate from a file. The file should be an unencrypted
+//// (X509) PEM file.  Use TLSCert() instead for more complex usage.
+//func (self MsgNetworkConfig) TLSCert(fname string) {
+//    c_str := C.CString(fname)
+//    C.msgnetwork_config_tls_cert(self.inner, c_str)
+//    C.free(rawptr_t(c_str))
+//}
+
 // Create a message network handle which is attached to given event loop.
-func NewMsgNetwork(ec EventContext, config MsgNetworkConfig) MsgNetwork {
-    res := MsgNetworkFromC(C.msgnetwork_new(ec.inner, config.inner))
-    ec.attach(rawptr_t(res.inner), res)
-    runtime.SetFinalizer(res, func(self MsgNetwork) { self.free() })
+func NewMsgNetwork(ec EventContext, config MsgNetworkConfig, err *Error) MsgNetwork {
+    res := MsgNetworkFromC(C.msgnetwork_new(ec.inner, config.inner, err))
+    if res != nil {
+        ec.attach(rawptr_t(res.inner), res)
+        runtime.SetFinalizer(res, func(self MsgNetwork) { self.free() })
+    }
     return res
 }
 
@@ -155,9 +203,11 @@ func (self MsgNetwork) SendMsgDeferredByMove(msg Msg, conn MsgNetworkConn) {
 
 // Try to connect to a remote address. The connection handle is returned. The
 // returned connection handle could be kept in your program.
-func (self MsgNetwork) Connect(addr NetAddr, err *Error) MsgNetworkConn {
-    res := MsgNetworkConnFromC(C.msgnetwork_connect(self.inner, addr.inner, err))
-    runtime.SetFinalizer(res, func(self MsgNetworkConn) { self.free() })
+func (self MsgNetwork) Connect(addr NetAddr, blocking bool, err *Error) MsgNetworkConn {
+    res := MsgNetworkConnFromC(C.msgnetwork_connect(self.inner, addr.inner, C.bool(blocking), err))
+    if res != nil {
+        runtime.SetFinalizer(res, func(self MsgNetworkConn) { self.free() })
+    }
     return res
 }
 
@@ -269,10 +319,12 @@ func (self PeerNetworkConfig) AsMsgNetworkConfig() MsgNetworkConfig {
 }
 
 // Create a peer-to-peer message network handle.
-func NewPeerNetwork(ec EventContext, config PeerNetworkConfig) PeerNetwork {
-    res := PeerNetworkFromC(C.peernetwork_new(ec.inner, config.inner))
-    ec.attach(rawptr_t(res.inner), res)
-    runtime.SetFinalizer(res, func(self PeerNetwork) { self.free() })
+func NewPeerNetwork(ec EventContext, config PeerNetworkConfig, err *Error) PeerNetwork {
+    res := PeerNetworkFromC(C.peernetwork_new(ec.inner, config.inner, err))
+    if res != nil {
+        ec.attach(rawptr_t(res.inner), res)
+        runtime.SetFinalizer(res, func(self PeerNetwork) { self.free() })
+    }
     return res
 }
 
@@ -290,7 +342,9 @@ func (self PeerNetwork) HasPeer(paddr NetAddr) bool { return bool(C.peernetwork_
 // returned connection handle could be kept in your program.
 func (self PeerNetwork) GetPeerConn(paddr NetAddr, err *Error) PeerNetworkConn {
     res := PeerNetworkConnFromC(C.peernetwork_get_peer_conn(self.inner, paddr.inner, err))
-    runtime.SetFinalizer(res, func(self PeerNetworkConn) { self.free() })
+    if res != nil {
+        runtime.SetFinalizer(res, func(self PeerNetworkConn) { self.free() })
+    }
     return res
 }
 

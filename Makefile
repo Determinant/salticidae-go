@@ -1,6 +1,6 @@
 .PHONY: all clean
 
-all: build/test_msgnet build/test_p2p_stress
+all: build/test_msgnet build/test_p2p_stress build/test_msgnet_tls
 
 
 salticidae/libsalticidae.so:
@@ -13,6 +13,9 @@ build:
 build/test_msgnet: salticidae/libsalticidae.so test_msgnet/main.go
 	make -C salticidae/
 	go build -o $@ github.com/Determinant/salticidae-go/test_msgnet
+build/test_msgnet_tls: salticidae/libsalticidae.so test_msgnet_tls/main.go
+	make -C salticidae/
+	go build -o $@ github.com/Determinant/salticidae-go/test_msgnet_tls
 build/test_p2p_stress: salticidae/libsalticidae.so test_p2p_stress/main.go
 	make -C salticidae/
 	go build -o $@ github.com/Determinant/salticidae-go/test_p2p_stress
