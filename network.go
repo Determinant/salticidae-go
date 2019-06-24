@@ -423,3 +423,85 @@ type MsgNetworkUnknownPeerCallback = C.msgnetwork_unknown_peer_callback_t
 func (self PeerNetwork) RegUnknownPeerHandler(callback MsgNetworkUnknownPeerCallback, userdata rawptr_t) {
     C.peernetwork_reg_unknown_peer_handler(self.inner, callback, userdata)
 }
+
+
+// The C pointer type for a ClientNetwork handle.
+type CClientNetwork = *C.clientnetwork_t
+type clientNetwork struct { inner CClientNetwork }
+// The handle for a client-server network.
+type ClientNetwork = *clientNetwork
+
+func ClientNetworkFromC(ptr CClientNetwork) ClientNetwork {
+    return &clientNetwork{ inner: ptr }
+}
+
+// The C pointer type for a ClientNetworkConn handle.
+type CClientNetworkConn = *C.clientnetwork_conn_t
+type clientNetworkConn struct { inner CClientNetworkConn }
+// The handle for a ClientNetwork connection.
+type ClientNetworkConn = *clientNetworkConn
+
+func ClientNetworkConnFromC(ptr CClientNetworkConn) ClientNetworkConn {
+    return &clientNetworkConn{ inner: ptr }
+}
+
+// Create a client-server message network handle.
+func NewClientNetwork(ec EventContext, config MsgNetworkConfig, err *Error) ClientNetwork {
+    res := ClientNetworkFromC(C.clientnetwork_new(ec.inner, config.inner, err))
+    if res != nil {
+        ec.attach(rawptr_t(res.inner), res)
+        runtime.SetFinalizer(res, func(self ClientNetwork) { self.free() })
+    }
+    return res
+}
+
+func (self ClientNetwork) free() { C.clientnetwork_free(self.inner) }
+
+// Use the ClientNetwork handle as a MsgNetwork handle (to invoke the methods
+// inherited from MsgNetwork, such as RegHandler).
+func (self ClientNetwork) AsMsgNetwork() MsgNetwork {
+    return MsgNetworkFromC(C.clientnetwork_as_msgnetwork(self.inner))
+}
+
+// Use the MsgNetwork handle as a ClientNetwork handle (forcing the conversion).
+func (self MsgNetwork) AsClientNetworkUnsafe() ClientNetwork {
+    return ClientNetworkFromC(C.msgnetwork_as_clientnetwork_unsafe(self.inner))
+}
+
+// Create a MsgNetworkConn handle from a ClientNetworkConn (representing the same
+// connection).
+func NewMsgNetworkConnFromClientNetWorkConn(conn ClientNetworkConn) MsgNetworkConn {
+    res := MsgNetworkConnFromC(C.msgnetwork_conn_new_from_clientnetwork_conn(conn.inner))
+    runtime.SetFinalizer(res, func(self MsgNetworkConn) { self.free() })
+    return res
+}
+
+// Create a ClientNetworkConn handle from a MsgNetworkConn (representing the same
+// connection and forcing the conversion).
+func NewClientNetworkConnFromMsgNetWorkConnUnsafe(conn MsgNetworkConn) ClientNetworkConn {
+    res := ClientNetworkConnFromC(C.clientnetwork_conn_new_from_msgnetwork_conn_unsafe(conn.inner))
+    runtime.SetFinalizer(res, func(self ClientNetworkConn) { self.free() })
+    return res
+}
+
+// Make a copy of the connection handle.
+func (self ClientNetworkConn) Copy() ClientNetworkConn {
+    res := ClientNetworkConnFromC(C.clientnetwork_conn_copy(self.inner))
+    runtime.SetFinalizer(res, func(self ClientNetworkConn) { self.free() })
+    return res
+}
+
+func (self ClientNetworkConn) free() { C.clientnetwork_conn_free(self.inner) }
+
+// Send a message to the given client.
+func (self ClientNetwork) SendMsg(msg Msg, addr NetAddr) {
+    C.clientnetwork_send_msg(self.inner, msg.inner, addr.inner)
+}
+
+// Send a message to the given client, using a worker thread to seralize and put
+// data to the send buffer. The payload contained in the given msg will be
+// moved and sent. Thus, no methods of msg involving the payload should be
+// called afterwards.
+func (self ClientNetwork) SendMsgDeferredByMove(msg Msg, addr NetAddr) {
+    C.clientnetwork_send_msg_deferred_by_move(self.inner, msg.inner, addr.inner)
+}
