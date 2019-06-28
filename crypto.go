@@ -11,13 +11,17 @@ type x509 struct { inner CX509 }
 // The handle for a X509 certificate.
 type X509 = *x509
 
+func X509FromC(ptr CX509) X509 {
+    return &x509{ inner: ptr }
+}
+
 func NewX509FromPemFile(fname string, passwd *string, err *Error) X509 {
     fname_c_str := C.CString(fname)
     passwd_c_str := (*C.char)(nil)
     if passwd != nil {
         passwd_c_str = C.CString(*passwd)
     }
-    res := &x509{ inner: C.x509_new_from_pem_file(fname_c_str, passwd_c_str, err) }
+    res := X509FromC(C.x509_new_from_pem_file(fname_c_str, passwd_c_str, err))
     if res != nil {
         runtime.SetFinalizer(res, func(self X509) { self.free() })
     }
@@ -29,7 +33,7 @@ func NewX509FromPemFile(fname string, passwd *string, err *Error) X509 {
 }
 
 func NewX509FromDer(der ByteArray, err *Error) X509 {
-    res := &x509{ inner: C.x509_new_from_der(der.inner, err) }
+    res := X509FromC(C.x509_new_from_der(der.inner, err))
     if res != nil {
         runtime.SetFinalizer(res, func(self X509) { self.free() })
     }

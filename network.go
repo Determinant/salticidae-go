@@ -425,7 +425,7 @@ func (self PeerNetwork) RegPeerHandler(callback PeerNetworkPeerCallback, userdat
     C.peernetwork_reg_peer_handler(self.inner, callback, userdata)
 }
 
-// The C function pointer type which takes netaddr_t* and void* (passing in the
+// The C function pointer type which takes netaddr_t*, x509_t* and void* (passing in the
 // custom user data allocated by C.malloc) as parameters.
 type PeerNetworkUnknownPeerCallback = C.peernetwork_unknown_peer_callback_t
 
