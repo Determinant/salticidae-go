@@ -365,7 +365,7 @@ func (self MsgNetwork) AsPeerNetworkUnsafe() PeerNetwork {
 
 // Create a MsgNetworkConn handle from a PeerNetworkConn (representing the same
 // connection).
-func NewMsgNetworkConnFromPeerNetWorkConn(conn PeerNetworkConn) MsgNetworkConn {
+func NewMsgNetworkConnFromPeerNetworkConn(conn PeerNetworkConn) MsgNetworkConn {
     res := MsgNetworkConnFromC(C.msgnetwork_conn_new_from_peernetwork_conn(conn.inner))
     runtime.SetFinalizer(res, func(self MsgNetworkConn) { self.free() })
     return res
@@ -373,7 +373,7 @@ func NewMsgNetworkConnFromPeerNetWorkConn(conn PeerNetworkConn) MsgNetworkConn {
 
 // Create a PeerNetworkConn handle from a MsgNetworkConn (representing the same
 // connection and forcing the conversion).
-func NewPeerNetworkConnFromMsgNetWorkConnUnsafe(conn MsgNetworkConn) PeerNetworkConn {
+func NewPeerNetworkConnFromMsgNetworkConnUnsafe(conn MsgNetworkConn) PeerNetworkConn {
     res := PeerNetworkConnFromC(C.peernetwork_conn_new_from_msgnetwork_conn_unsafe(conn.inner))
     runtime.SetFinalizer(res, func(self PeerNetworkConn) { self.free() })
     return res
@@ -416,18 +416,26 @@ func (self PeerNetwork) MulticastMsgByMove(msg Msg, addrs []NetAddr) {
     C.peernetwork_multicast_msg_by_move(self.inner, msg.inner, na.inner)
 }
 
+// The C function pointer type which takes peernetwork_conn_t*, bool and void*
+// (passing in the custom user data allocated by C.malloc) as parameters.
+type PeerNetworkPeerCallback = C.peernetwork_peer_callback_t
+
+// Register a connection handler invoked when p2p connection is established/broken.
+func (self PeerNetwork) RegPeerHandler(callback PeerNetworkPeerCallback, userdata rawptr_t) {
+    C.peernetwork_reg_peer_handler(self.inner, callback, userdata)
+}
+
 // The C function pointer type which takes netaddr_t* and void* (passing in the
 // custom user data allocated by C.malloc) as parameters.
-type MsgNetworkUnknownPeerCallback = C.msgnetwork_unknown_peer_callback_t
+type PeerNetworkUnknownPeerCallback = C.peernetwork_unknown_peer_callback_t
 
 // Register a connection handler invoked when a remote peer that is not in the
 // list of known peers attempted to connect. By default configuration, the
 // connection was rejected, and you can call AddPeer() to enroll this peer if
 // you hope to establish the connection soon.
-func (self PeerNetwork) RegUnknownPeerHandler(callback MsgNetworkUnknownPeerCallback, userdata rawptr_t) {
+func (self PeerNetwork) RegUnknownPeerHandler(callback PeerNetworkUnknownPeerCallback, userdata rawptr_t) {
     C.peernetwork_reg_unknown_peer_handler(self.inner, callback, userdata)
 }
-
 
 // The C pointer type for a ClientNetwork handle.
 type CClientNetwork = *C.clientnetwork_t
@@ -474,7 +482,7 @@ func (self MsgNetwork) AsClientNetworkUnsafe() ClientNetwork {
 
 // Create a MsgNetworkConn handle from a ClientNetworkConn (representing the same
 // connection).
-func NewMsgNetworkConnFromClientNetWorkConn(conn ClientNetworkConn) MsgNetworkConn {
+func NewMsgNetworkConnFromClientNetworkConn(conn ClientNetworkConn) MsgNetworkConn {
     res := MsgNetworkConnFromC(C.msgnetwork_conn_new_from_clientnetwork_conn(conn.inner))
     runtime.SetFinalizer(res, func(self MsgNetworkConn) { self.free() })
     return res
@@ -482,7 +490,7 @@ func NewMsgNetworkConnFromClientNetWorkConn(conn ClientNetworkConn) MsgNetworkCo
 
 // Create a ClientNetworkConn handle from a MsgNetworkConn (representing the same
 // connection and forcing the conversion).
-func NewClientNetworkConnFromMsgNetWorkConnUnsafe(conn MsgNetworkConn) ClientNetworkConn {
+func NewClientNetworkConnFromMsgNetworkConnUnsafe(conn MsgNetworkConn) ClientNetworkConn {
     res := ClientNetworkConnFromC(C.clientnetwork_conn_new_from_msgnetwork_conn_unsafe(conn.inner))
     runtime.SetFinalizer(res, func(self ClientNetworkConn) { self.free() })
     return res

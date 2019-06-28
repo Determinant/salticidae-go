@@ -10,7 +10,7 @@ package main
 // void onReceiveRand(msg_t *, msgnetwork_conn_t *, void *);
 // void onReceiveAck(msg_t *, msgnetwork_conn_t *, void *);
 // void onStopLoop(threadcall_handle_t *, void *);
-// void connHandler(msgnetwork_conn_t *, bool, void *);
+// void peerHandler(peernetwork_conn_t *, bool, void *);
 // void errorHandler(SalticidaeCError *, bool, void *);
 // void onTimeout(timerev_t *, void *);
 // typedef struct timeout_callback_context_t {
@@ -214,12 +214,12 @@ func onReceiveAck(_msg *C.struct_msg_t, _conn *C.struct_msgnetwork_conn_t, userd
     }
 }
 
-//export connHandler
-func connHandler(_conn *C.struct_msgnetwork_conn_t, connected C.bool, userdata unsafe.Pointer) {
-    conn := salticidae.MsgNetworkConnFromC(salticidae.CMsgNetworkConn(_conn))
-    id := *(*int)(userdata)
-    app := &apps[id]
+//export peerHandler
+func peerHandler(_conn *C.struct_peernetwork_conn_t, connected C.bool, userdata unsafe.Pointer) {
     if connected {
+        conn := salticidae.NewMsgNetworkConnFromPeerNetworkConn(salticidae.PeerNetworkConnFromC(salticidae.CPeerNetworkConn(_conn)))
+        id := *(*int)(userdata)
+        app := &apps[id]
         if conn.GetMode() == salticidae.CONN_MODE_ACTIVE {
             tc := app.getTC(addr2id(conn.GetAddr()))
             tc.state = 1
@@ -288,7 +288,7 @@ func main() {
         mnet := net.AsMsgNetwork()
         mnet.RegHandler(MSG_OPCODE_RAND, salticidae.MsgNetworkMsgCallback(C.onReceiveRand), _i)
         mnet.RegHandler(MSG_OPCODE_ACK, salticidae.MsgNetworkMsgCallback(C.onReceiveAck), _i)
-        mnet.RegConnHandler(salticidae.MsgNetworkConnCallback(C.connHandler), _i)
+        net.RegPeerHandler(salticidae.PeerNetworkPeerCallback(C.peerHandler), _i)
         mnet.RegErrorHandler(salticidae.MsgNetworkErrorCallback(C.errorHandler), _i)
         mnet.Start()
     }
