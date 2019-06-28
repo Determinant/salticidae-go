@@ -43,3 +43,13 @@ func (self Msg) GetPayloadByMove() DataStream {
 func (self Msg) GetOpcode() Opcode {
     return Opcode(C.msg_get_opcode(self.inner))
 }
+
+// Get the magic number.
+func (self Msg) GetMagic() uint32 {
+    return uint32(C.msg_get_magic(self.inner))
+}
+
+// Set the magic number (the default value is 0x0).
+func (self Msg) SetMagic(magic uint32) {
+    C.msg_set_magic(self.inner, C.uint32_t(magic))
+}
