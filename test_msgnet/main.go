@@ -11,7 +11,6 @@ package main
 import "C"
 
 import (
-    "encoding/binary"
     "os"
     "fmt"
     "unsafe"
@@ -25,9 +24,7 @@ const (
 
 func msgHelloSerialize(name string, text string) salticidae.Msg {
     serialized := salticidae.NewDataStream()
-    t := make([]byte, 4)
-    binary.LittleEndian.PutUint32(t, uint32(len(name)))
-    serialized.PutData(t)
+    serialized.PutU32(salticidae.ToLittleEndianU32(uint32(len(name))))
     serialized.PutData([]byte(name))
     serialized.PutData([]byte(text))
     return salticidae.NewMsgMovedFromByteArray(
@@ -36,8 +33,9 @@ func msgHelloSerialize(name string, text string) salticidae.Msg {
 
 func msgHelloUnserialize(msg salticidae.Msg) (name string, text string) {
     p := msg.GetPayloadByMove()
-    t := p.GetDataInPlace(4); length := binary.LittleEndian.Uint32(t.Get()); t.Release()
-    t = p.GetDataInPlace(int(length)); name = string(t.Get()); t.Release()
+    succ := true
+    length := salticidae.FromLittleEndianU32(p.GetU32(&succ))
+    t := p.GetDataInPlace(int(length)); name = string(t.Get()); t.Release()
     t = p.GetDataInPlace(p.Size()); text = string(t.Get()); t.Release()
     return
 }
@@ -139,9 +137,10 @@ func genMyNet(ec salticidae.EventContext,
 
 func main() {
     ec = salticidae.NewEventContext()
+    err := salticidae.NewError()
 
-    aliceAddr := salticidae.NewAddrFromIPPortString("127.0.0.1:12345")
-    bobAddr := salticidae.NewAddrFromIPPortString("127.0.0.1:12346")
+    aliceAddr := salticidae.NewAddrFromIPPortString("127.0.0.1:12345", &err)
+    bobAddr := salticidae.NewAddrFromIPPortString("127.0.0.1:12346", &err)
 
     alice = genMyNet(ec, "alice", aliceAddr, bobAddr)
     bob = genMyNet(ec, "bob", bobAddr, aliceAddr)

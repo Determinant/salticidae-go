@@ -28,9 +28,9 @@ type netAddrArray struct {
 type NetAddrArray = *netAddrArray
 
 // Create NetAddr from a TCP socket format string (e.g. 127.0.0.1:8888).
-func NewAddrFromIPPortString(addr string) (res NetAddr) {
+func NewAddrFromIPPortString(addr string, err *Error) (res NetAddr) {
     c_str := C.CString(addr)
-    res = &netAddr{ inner: C.netaddr_new_from_sipport(c_str) }
+    res = &netAddr{ inner: C.netaddr_new_from_sipport(c_str, err) }
     C.free(rawptr_t(c_str))
     runtime.SetFinalizer(res, func(self NetAddr) { self.free() })
     return

@@ -263,8 +263,8 @@ func PeerNetworkConnFromC(ptr CPeerNetworkConn) PeerNetworkConn {
 }
 
 var (
-    ID_MODE_IP_BASED = PeerNetworkIdMode(C.ID_MODE_IP_BASED)
-    ID_MODE_IP_PORT_BASED = PeerNetworkIdMode(C.ID_MODE_IP_PORT_BASED)
+    ADDR_BASED = PeerNetworkIdMode(C.ID_MODE_ADDR_BASED)
+    CERT_BASED = PeerNetworkIdMode(C.ID_MODE_CERT_BASED)
 )
 
 // The identity mode.  ID_MODE_IP_BASED: a remote peer is identified by the IP
@@ -333,15 +333,19 @@ func (self PeerNetwork) free() { C.peernetwork_free(self.inner) }
 // Add a peer to the list of known peers. The P2P network will try to keep
 // bi-direction connections to all known peers in the list (through
 // reconnection and connection deduplication).
-func (self PeerNetwork) AddPeer(paddr NetAddr) { C.peernetwork_add_peer(self.inner, paddr.inner) }
+func (self PeerNetwork) AddPeer(addr NetAddr) { C.peernetwork_add_peer(self.inner, addr.inner) }
+
+// Remove a peer from the list of known peers. The P2P network will teardown
+// the existing bi-direction connection and the PeerHandler callback will not be called.
+func (self PeerNetwork) DelPeer(addr NetAddr) { C.peernetwork_del_peer(self.inner, addr.inner) }
 
 // Test whether a peer is already in the list.
-func (self PeerNetwork) HasPeer(paddr NetAddr) bool { return bool(C.peernetwork_has_peer(self.inner, paddr.inner)) }
+func (self PeerNetwork) HasPeer(addr NetAddr) bool { return bool(C.peernetwork_has_peer(self.inner, addr.inner)) }
 
 // Get the connection of the known peer. The connection handle is returned. The
 // returned connection handle could be kept in your program.
-func (self PeerNetwork) GetPeerConn(paddr NetAddr, err *Error) PeerNetworkConn {
-    res := PeerNetworkConnFromC(C.peernetwork_get_peer_conn(self.inner, paddr.inner, err))
+func (self PeerNetwork) GetPeerConn(addr NetAddr, err *Error) PeerNetworkConn {
+    res := PeerNetworkConnFromC(C.peernetwork_get_peer_conn(self.inner, addr.inner, err))
     if res != nil {
         runtime.SetFinalizer(res, func(self PeerNetworkConn) { self.free() })
     }
@@ -407,8 +411,8 @@ func (self PeerNetwork) SendMsgDeferredByMove(msg Msg, addr NetAddr) {
 // Send a message to the given list of peers. The payload contained in the
 // given msg will be moved and sent. Thus, no methods of msg involving the
 // payload should be called afterwards.
-func (self PeerNetwork) MulticastMsgByMove(msg Msg, paddrs []NetAddr) {
-    na := NewAddrArrayFromAddrs(paddrs)
+func (self PeerNetwork) MulticastMsgByMove(msg Msg, addrs []NetAddr) {
+    na := NewAddrArrayFromAddrs(addrs)
     C.peernetwork_multicast_msg_by_move(self.inner, msg.inner, na.inner)
 }
 
