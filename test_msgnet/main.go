@@ -1,11 +1,12 @@
 package main
 
 // #cgo CFLAGS: -I${SRCDIR}/../salticidae/include/
+// #include <stdlib.h>
 // #include "salticidae/network.h"
 // void onTerm(int sig, void *);
 // void onReceiveHello(msg_t *, msgnetwork_conn_t *, void *);
 // void onReceiveAck(msg_t *, msgnetwork_conn_t *, void *);
-// void connHandler(msgnetwork_conn_t *, bool, void *);
+// bool connHandler(msgnetwork_conn_t *, bool, void *);
 // void errorHandler(SalticidaeCError *, bool, void *);
 import "C"
 
@@ -55,6 +56,7 @@ func checkError(err *salticidae.Error) {
 type MyNet struct {
     net salticidae.MsgNetwork
     name string
+    cname *C.char
 }
 
 var (
@@ -68,53 +70,44 @@ func onTerm(_ C.int, _ unsafe.Pointer) {
 }
 
 //export onReceiveHello
-func onReceiveHello(_msg *C.struct_msg_t, _conn *C.struct_msgnetwork_conn_t, _ unsafe.Pointer) {
+func onReceiveHello(_msg *C.struct_msg_t, _conn *C.struct_msgnetwork_conn_t, userdata unsafe.Pointer) {
     msg := salticidae.MsgFromC(salticidae.CMsg(_msg))
     conn := salticidae.MsgNetworkConnFromC(salticidae.CMsgNetworkConn(_conn))
     net := conn.GetNet()
-    myName := bob.name
-    if net == alice.net {
-        myName = alice.name
-    }
     name, text := msgHelloUnserialize(msg)
+    myName := C.GoString((*C.char)(userdata))
     fmt.Printf("[%s] %s says %s\n", myName, name, text)
     ack := msgAckSerialize()
     net.SendMsg(ack, conn)
 }
 
 //export onReceiveAck
-func onReceiveAck(_ *C.struct_msg_t, _conn *C.struct_msgnetwork_conn_t, _ unsafe.Pointer) {
-    conn := salticidae.MsgNetworkConnFromC(salticidae.CMsgNetworkConn(_conn))
-    net := conn.GetNet()
-    name := bob.name
-    if net == alice.net {
-        name = alice.name
-    }
-    fmt.Printf("[%s] the peer knows\n", name)
+func onReceiveAck(_ *C.struct_msg_t, _conn *C.struct_msgnetwork_conn_t, userdata unsafe.Pointer) {
+    myName := C.GoString((*C.char)(userdata))
+    fmt.Printf("[%s] the peer knows\n", myName)
 }
 
 //export connHandler
-func connHandler(_conn *C.struct_msgnetwork_conn_t, connected C.bool, _ unsafe.Pointer) {
+func connHandler(_conn *C.struct_msgnetwork_conn_t, connected C.bool, userdata unsafe.Pointer) C.bool {
     conn := salticidae.MsgNetworkConnFromC(salticidae.CMsgNetworkConn(_conn))
     net := conn.GetNet()
-    n := bob
-    if net == alice.net {
-        n = alice
-    }
-    name := n.name
+    myName := C.GoString((*C.char)(userdata))
+    n := alice
+    if myName == "bob" { n = bob }
     if connected {
         if conn.GetMode() == salticidae.CONN_MODE_ACTIVE {
-            fmt.Printf("[%s] Connected, sending hello.\n", name)
-            hello := msgHelloSerialize(name, "Hello there!")
+            fmt.Printf("[%s] connected, sending hello.\n", myName)
+            hello := msgHelloSerialize(myName, "Hello there!")
             n.net.SendMsg(hello, conn)
         } else {
-            fmt.Printf("[%s] Accepted, waiting for greetings.\n", name)
+            fmt.Printf("[%s] accepted, waiting for greetings.\n", myName)
         }
     } else {
-        fmt.Printf("[%s] Disconnected, retrying.\n", name)
+        fmt.Printf("[%s] disconnected, retrying.\n", myName)
         err := salticidae.NewError()
         net.Connect(conn.GetAddr(), false, &err)
     }
+    return true
 }
 
 //export errorHandler
@@ -125,16 +118,18 @@ func errorHandler(_err *C.struct_SalticidaeCError, fatal C.bool, _ unsafe.Pointe
     fmt.Printf("Captured %s error during an async call: %s\n", s, salticidae.StrError(err.GetCode()))
 }
 
-func genMyNet(ec salticidae.EventContext, name string,
+func genMyNet(ec salticidae.EventContext,
+            name string,
             myAddr salticidae.NetAddr, otherAddr salticidae.NetAddr) MyNet {
     err := salticidae.NewError()
     netconfig := salticidae.NewMsgNetworkConfig()
     net := salticidae.NewMsgNetwork(ec, netconfig, &err); checkError(&err)
-    n := MyNet { net: net, name: name }
-    n.net.RegHandler(MSG_OPCODE_HELLO, salticidae.MsgNetworkMsgCallback(C.onReceiveHello), nil)
-    n.net.RegHandler(MSG_OPCODE_ACK, salticidae.MsgNetworkMsgCallback(C.onReceiveAck), nil)
-    n.net.RegConnHandler(salticidae.MsgNetworkConnCallback(C.connHandler), nil)
-    n.net.RegErrorHandler(salticidae.MsgNetworkErrorCallback(C.errorHandler), nil)
+    n := MyNet { net: net, name: name, cname: C.CString(name) }
+    cname := unsafe.Pointer(n.cname)
+    n.net.RegHandler(MSG_OPCODE_HELLO, salticidae.MsgNetworkMsgCallback(C.onReceiveHello), cname)
+    n.net.RegHandler(MSG_OPCODE_ACK, salticidae.MsgNetworkMsgCallback(C.onReceiveAck), cname)
+    n.net.RegConnHandler(salticidae.MsgNetworkConnCallback(C.connHandler), cname)
+    n.net.RegErrorHandler(salticidae.MsgNetworkErrorCallback(C.errorHandler), cname)
 
     n.net.Start()
     n.net.Listen(myAddr, &err); checkError(&err)
@@ -148,8 +143,8 @@ func main() {
     aliceAddr := salticidae.NewAddrFromIPPortString("127.0.0.1:12345")
     bobAddr := salticidae.NewAddrFromIPPortString("127.0.0.1:12346")
 
-    alice = genMyNet(ec, "Alice", aliceAddr, bobAddr)
-    bob = genMyNet(ec, "Bob", bobAddr, aliceAddr)
+    alice = genMyNet(ec, "alice", aliceAddr, bobAddr)
+    bob = genMyNet(ec, "bob", bobAddr, aliceAddr)
 
     ev_int := salticidae.NewSigEvent(ec, salticidae.SigEventCallback(C.onTerm), nil)
     ev_int.Add(salticidae.SIGINT)
@@ -159,4 +154,6 @@ func main() {
     ec.Dispatch()
     alice.net.Stop()
     bob.net.Stop()
+    C.free(unsafe.Pointer(alice.cname))
+    C.free(unsafe.Pointer(bob.cname))
 }

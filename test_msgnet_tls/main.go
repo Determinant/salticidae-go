@@ -100,18 +100,18 @@ func connHandler(_conn *C.struct_msgnetwork_conn_t, connected C.bool, userdata u
         certHash := conn.GetPeerCert().GetDer().GetHash()
         res = certHash.IsEq(n.peerCert)
         if conn.GetMode() == salticidae.CONN_MODE_ACTIVE {
-            fmt.Printf("[%s] Connected, sending hello.\n", myName)
+            fmt.Printf("[%s] connected, sending hello.\n", myName)
             hello := msgHelloSerialize(myName, "Hello there!")
             n.net.SendMsg(hello, conn)
         } else {
             status := "fail"
             if res { status = "ok" }
-            fmt.Printf("[%s] Accepted, waiting for greetings.\n" +
-                        "The peer certificate footprint is %s (%s)\n",
+            fmt.Printf("[%s] accepted, waiting for greetings.\n" +
+                        "The peer certificate fingerprint is %s (%s)\n",
                         myName, certHash.GetHex(), status)
         }
     } else {
-        fmt.Printf("[%s] Disconnected, retrying.\n", myName)
+        fmt.Printf("[%s] disconnected, retrying.\n", myName)
         err := salticidae.NewError()
         net.Connect(conn.GetAddr(), false, &err)
     }
@@ -136,12 +136,12 @@ func genMyNet(ec salticidae.EventContext,
     netconfig.TLSCertFile(name + ".pem")
     net := salticidae.NewMsgNetwork(ec, netconfig, &err); checkError(&err)
     _peerCert := salticidae.NewUInt256FromByteArray(salticidae.NewByteArrayFromHex(peerCert))
-    cname := C.CString(name)
-    n := MyNet { net: net, name: name, peerCert: _peerCert, cname: cname }
-    n.net.RegHandler(MSG_OPCODE_HELLO, salticidae.MsgNetworkMsgCallback(C.onReceiveHello), unsafe.Pointer(cname))
-    n.net.RegHandler(MSG_OPCODE_ACK, salticidae.MsgNetworkMsgCallback(C.onReceiveAck), unsafe.Pointer(cname))
-    n.net.RegConnHandler(salticidae.MsgNetworkConnCallback(C.connHandler), unsafe.Pointer(cname))
-    n.net.RegErrorHandler(salticidae.MsgNetworkErrorCallback(C.errorHandler), unsafe.Pointer(cname))
+    n := MyNet { net: net, name: name, peerCert: _peerCert, cname: C.CString(name) }
+    cname := unsafe.Pointer(n.cname)
+    n.net.RegHandler(MSG_OPCODE_HELLO, salticidae.MsgNetworkMsgCallback(C.onReceiveHello), cname)
+    n.net.RegHandler(MSG_OPCODE_ACK, salticidae.MsgNetworkMsgCallback(C.onReceiveAck), cname)
+    n.net.RegConnHandler(salticidae.MsgNetworkConnCallback(C.connHandler), cname)
+    n.net.RegErrorHandler(salticidae.MsgNetworkErrorCallback(C.errorHandler), cname)
 
     n.net.Start()
     n.net.Listen(myAddr, &err); checkError(&err)
