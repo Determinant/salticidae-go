@@ -33,7 +33,6 @@ func MsgNetworkConnFromC(ptr CMsgNetworkConn) MsgNetworkConn {
 var (
     CONN_MODE_ACTIVE = MsgNetworkConnMode(C.CONN_MODE_ACTIVE)
     CONN_MODE_PASSIVE = MsgNetworkConnMode(C.CONN_MODE_PASSIVE)
-    CONN_MODE_DEAD = MsgNetworkConnMode(C.CONN_MODE_DEAD)
 )
 
 // The connection mode. CONN_MODE_ACTIVE: a connection established from the
@@ -383,6 +382,13 @@ func NewPeerNetworkConnFromMsgNetworkConnUnsafe(conn MsgNetworkConn) PeerNetwork
 func (self PeerNetworkConn) Copy() PeerNetworkConn {
     res := PeerNetworkConnFromC(C.peernetwork_conn_copy(self.inner))
     runtime.SetFinalizer(res, func(self PeerNetworkConn) { self.free() })
+    return res
+}
+
+// Get the listening address of the remote peer (no Copy() is needed).
+func (self PeerNetworkConn) GetPeerAddr() NetAddr {
+    res := NetAddrFromC(C.peernetwork_conn_get_peer_addr(self.inner))
+    runtime.SetFinalizer(res, func(self NetAddr) { self.free() })
     return res
 }
 

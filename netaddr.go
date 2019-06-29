@@ -39,14 +39,19 @@ func NewAddrFromIPPortString(addr string, err *Error) (res NetAddr) {
 // Convert a Go slice of net addresses to NetAddrArray.
 func NewAddrArrayFromAddrs(arr []NetAddr) (res NetAddrArray) {
     size := len(arr)
+    _arr := make([]CNetAddr, size)
+    for i, v := range arr {
+        _arr[i] = v.inner
+    }
     if size > 0 {
         // FIXME: here we assume struct of a single pointer has the same memory
         // footprint the pointer
-        base := (**C.netaddr_t)(rawptr_t(&arr[0]))
+        base := (**C.netaddr_t)(rawptr_t(&_arr[0]))
         res = &netAddrArray{ inner: C.netaddr_array_new_from_addrs(base, C.size_t(size)) }
     } else {
         res = &netAddrArray{ inner: C.netaddr_array_new() }
     }
+    runtime.KeepAlive(_arr)
     runtime.SetFinalizer(res, func(self NetAddrArray) { self.free() })
     return
 }
