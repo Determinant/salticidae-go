@@ -402,8 +402,8 @@ func (self PeerNetwork) Listen(listenAddr NetAddr, err *Error) {
 }
 
 // Send a message to the given peer.
-func (self PeerNetwork) SendMsg(msg Msg, addr NetAddr) {
-    C.peernetwork_send_msg(self.inner, msg.inner, addr.inner)
+func (self PeerNetwork) SendMsg(msg Msg, addr NetAddr) bool {
+    return bool(C.peernetwork_send_msg(self.inner, msg.inner, addr.inner))
 }
 
 // Send a message to the given peer, using a worker thread to seralize and put
@@ -512,8 +512,8 @@ func (self ClientNetworkConn) Copy() ClientNetworkConn {
 func (self ClientNetworkConn) free() { C.clientnetwork_conn_free(self.inner) }
 
 // Send a message to the given client.
-func (self ClientNetwork) SendMsg(msg Msg, addr NetAddr) {
-    C.clientnetwork_send_msg(self.inner, msg.inner, addr.inner)
+func (self ClientNetwork) SendMsg(msg Msg, addr NetAddr) bool {
+    return bool(C.clientnetwork_send_msg(self.inner, msg.inner, addr.inner))
 }
 
 // Send a message to the given client, using a worker thread to seralize and put
