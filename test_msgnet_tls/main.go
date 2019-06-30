@@ -23,12 +23,12 @@ const (
 )
 
 func msgHelloSerialize(name string, text string) salticidae.Msg {
-    serialized := salticidae.NewDataStream()
+    serialized := salticidae.NewDataStream(true)
     serialized.PutU32(salticidae.ToLittleEndianU32(uint32(len(name))))
     serialized.PutData([]byte(name))
     serialized.PutData([]byte(text))
     return salticidae.NewMsgMovedFromByteArray(
-        MSG_OPCODE_HELLO, salticidae.NewByteArrayMovedFromDataStream(serialized))
+        MSG_OPCODE_HELLO, salticidae.NewByteArrayMovedFromDataStream(serialized, true), true)
 }
 
 func msgHelloUnserialize(msg salticidae.Msg) (name string, text string) {
@@ -41,7 +41,7 @@ func msgHelloUnserialize(msg salticidae.Msg) (name string, text string) {
 }
 
 func msgAckSerialize() salticidae.Msg {
-    return salticidae.NewMsgMovedFromByteArray(MSG_OPCODE_ACK, salticidae.NewByteArray())
+    return salticidae.NewMsgMovedFromByteArray(MSG_OPCODE_ACK, salticidae.NewByteArray(true), true)
 }
 
 func checkError(err *salticidae.Error) {
@@ -95,7 +95,7 @@ func connHandler(_conn *C.struct_msgnetwork_conn_t, connected C.bool, userdata u
     if myName == "bob" { n = bob }
     res := true
     if connected {
-        certHash := conn.GetPeerCert().GetDer().GetHash()
+        certHash := conn.GetPeerCert().GetDer(true).GetHash(true)
         res = certHash.IsEq(n.peerCert)
         if conn.GetMode() == salticidae.CONN_MODE_ACTIVE {
             fmt.Printf("[%s] connected, sending hello.\n", myName)

@@ -23,7 +23,10 @@ import "runtime"
 
 type CByteArray = *C.bytearray_t
 // The C pointer to a ByteArray object.
-type byteArray struct { inner CByteArray }
+type byteArray struct {
+    inner CByteArray
+    autoFree bool
+}
 // Array of binary data.
 type ByteArray = *byteArray
 
@@ -31,48 +34,56 @@ func ByteArrayFromC(ptr CByteArray) ByteArray {
     return &byteArray{ inner: ptr }
 }
 
-func byteArraySetFinalizer(res ByteArray) {
-    if res != nil {
-        runtime.SetFinalizer(res, func(self ByteArray) { self.free() })
+func byteArraySetFinalizer(res ByteArray, autoFree bool) {
+    res.autoFree = autoFree
+    if res != nil && autoFree {
+        runtime.SetFinalizer(res, func(self ByteArray) { self.Free() })
     }
 }
 
 // Create an empty byte array (with zero contained bytes).
-func NewByteArray() ByteArray {
+func NewByteArray(autoFree bool) ByteArray {
     res := ByteArrayFromC(C.bytearray_new())
-    byteArraySetFinalizer(res)
+    byteArraySetFinalizer(res, autoFree)
     return res
 }
 
-func (self ByteArray) free() { C.bytearray_free(self.inner) }
+// Free the ByteArray manually. If the object is constructed with autoFree =
+// true, this will immediately free the object.
+func (self ByteArray) Free() {
+    C.bytearray_free(self.inner)
+    if self.autoFree {
+        runtime.SetFinalizer(self, nil)
+    }
+}
 
 // Create a byte array by taking out all data from src. Notice this is a
 // zero-copy operation that consumes and invalidates the data in src ("move"
 // semantics) so that no more operation should be done to src after this
 // function call. Also notice unlike copying, the entire DataStream buffer is
 // moved (including the possibily consumed part).
-func NewByteArrayMovedFromDataStream(src DataStream) (res ByteArray) {
+func NewByteArrayMovedFromDataStream(src DataStream, autoFree bool) (res ByteArray) {
     res = ByteArrayFromC(C.bytearray_new_moved_from_datastream(src.inner))
-    byteArraySetFinalizer(res)
+    byteArraySetFinalizer(res, autoFree)
     return
 }
 
 // Create a byte array by copying the remaining data from src.
-func NewByteArrayCopiedFromDataStream(src DataStream) (res ByteArray) {
+func NewByteArrayCopiedFromDataStream(src DataStream, autoFree bool) (res ByteArray) {
     res = ByteArrayFromC(C.bytearray_new_copied_from_datastream(src.inner))
-    byteArraySetFinalizer(res)
+    byteArraySetFinalizer(res, autoFree)
     return
 }
 
-func NewByteArrayFromHex(hex string) (res ByteArray) {
+func NewByteArrayFromHex(hex string) (res ByteArray, autoFree bool) {
     c_str := C.CString(hex)
     res = ByteArrayFromC(C.bytearray_new_from_hex(c_str))
     C.free(rawptr_t(c_str))
-    byteArraySetFinalizer(res)
+    byteArraySetFinalizer(res, autoFree)
     return
 }
 
-func NewByteArrayFromBytes(bytes []byte) (res ByteArray) {
+func NewByteArrayFromBytes(bytes []byte, autoFree bool) (res ByteArray) {
     size := len(bytes)
     if size > 0 {
         base := (*C.uint8_t)(&bytes[0])
@@ -80,7 +91,7 @@ func NewByteArrayFromBytes(bytes []byte) (res ByteArray) {
     } else {
         res = ByteArrayFromC(C.bytearray_new())
     }
-    byteArraySetFinalizer(res)
+    byteArraySetFinalizer(res, autoFree)
     return
 }
 
@@ -89,6 +100,7 @@ type CDataStream = *C.datastream_t
 type dataStream struct {
     inner CDataStream
     attached map[uintptr]interface{}
+    autoFree bool
 }
 
 // Stream of binary data.
@@ -101,21 +113,22 @@ func DataStreamFromC(ptr CDataStream) DataStream {
     }
 }
 
-func dataStreamSetFinalizer(res DataStream) {
-    if res != nil {
-        runtime.SetFinalizer(res, func(self DataStream) { self.free() })
+func dataStreamSetFinalizer(res DataStream, autoFree bool) {
+    res.autoFree = autoFree
+    if res != nil && autoFree {
+        runtime.SetFinalizer(res, func(self DataStream) { self.Free() })
     }
 }
 
 // Create an empty DataStream.
-func NewDataStream() DataStream {
+func NewDataStream(autoFree bool) DataStream {
     res := DataStreamFromC(C.datastream_new())
-    dataStreamSetFinalizer(res)
+    dataStreamSetFinalizer(res, autoFree)
     return res
 }
 
 // Create a DataStream with data copied from bytes.
-func NewDataStreamFromBytes(bytes []byte) (res DataStream) {
+func NewDataStreamFromBytes(bytes []byte, autoFree bool) (res DataStream) {
     size := len(bytes)
     if size > 0 {
         base := (*C.uint8_t)(&bytes[0])
@@ -123,33 +136,38 @@ func NewDataStreamFromBytes(bytes []byte) (res DataStream) {
     } else {
         res = DataStreamFromC(C.datastream_new())
     }
-    dataStreamSetFinalizer(res)
+    dataStreamSetFinalizer(res, autoFree)
     return
 }
 
 // Create a DataStream with content moved from a ByteArray.
-func NewDataStreamMovedFromByteArray(bytes ByteArray) (res DataStream) {
+func NewDataStreamMovedFromByteArray(bytes ByteArray, autoFree bool) (res DataStream) {
     res = DataStreamFromC(C.datastream_new_moved_from_bytearray(bytes.inner))
-    dataStreamSetFinalizer(res)
+    dataStreamSetFinalizer(res, autoFree)
     return
 }
 
 // Create a DataStream with content copied from a ByteArray.
-func NewDataStreamFromByteArray(bytes ByteArray) (res DataStream) {
+func NewDataStreamFromByteArray(bytes ByteArray, autoFree bool) (res DataStream) {
     res = DataStreamFromC(C.datastream_new_from_bytearray(bytes.inner))
-    dataStreamSetFinalizer(res)
+    dataStreamSetFinalizer(res, autoFree)
     return
 }
 
-func (self DataStream) free() { C.datastream_free(self.inner) }
+func (self DataStream) Free() {
+    C.datastream_free(self.inner)
+    if self.autoFree {
+        runtime.SetFinalizer(self, nil)
+    }
+}
 
 func (self DataStream) attach(ptr rawptr_t, obj interface{}) { self.attached[uintptr(ptr)] = obj }
 func (self DataStream) detach(ptr rawptr_t) { delete(self.attached, uintptr(ptr)) }
 
 // Make a copy of the object.
-func (self DataStream) Copy() (res DataStream) {
+func (self DataStream) Copy(autoFree bool) (res DataStream) {
     res = DataStreamFromC(C.datastream_copy(self.inner))
-    dataStreamSetFinalizer(res)
+    dataStreamSetFinalizer(res, autoFree)
     return
 }
 
@@ -249,7 +267,10 @@ func (self DataStream) GetDataInPlace(length int) DataStreamBytes {
 
 // The C pointer to a UInt256 object.
 type CUInt256 = *C.uint256_t
-type uint256 struct { inner CUInt256 }
+type uint256 struct {
+    inner CUInt256
+    autoFree bool
+}
 // 256-bit integer.
 type UInt256 = *uint256
 
@@ -257,26 +278,32 @@ func UInt256FromC(ptr CUInt256) UInt256 {
     return &uint256{ inner: ptr }
 }
 
-func uint256SetFinalizer(res UInt256) {
-    if res != nil {
-        runtime.SetFinalizer(res, func(self UInt256) { self.free() })
+func uint256SetFinalizer(res UInt256, autoFree bool) {
+    res.autoFree = autoFree
+    if res != nil && autoFree {
+        runtime.SetFinalizer(res, func(self UInt256) { self.Free() })
     }
 }
 
 // Create a 256-bit integer.
-func NewUInt256() UInt256 {
+func NewUInt256(autoFree bool) UInt256 {
     res := &uint256{ inner: C.uint256_new() }
-    uint256SetFinalizer(res)
+    uint256SetFinalizer(res, autoFree)
     return res
 }
 
-func NewUInt256FromByteArray(bytes ByteArray) (res UInt256) {
+func NewUInt256FromByteArray(bytes ByteArray, autoFree bool) (res UInt256) {
     res = &uint256{ inner: C.uint256_new_from_bytearray(bytes.inner) }
-    uint256SetFinalizer(res)
+    uint256SetFinalizer(res, autoFree)
     return
 }
 
-func (self UInt256) free() { C.uint256_free(self.inner) }
+func (self UInt256) Free() {
+    C.uint256_free(self.inner)
+    if self.autoFree {
+        runtime.SetFinalizer(self, nil)
+    }
+}
 
 func (self UInt256) IsNull() bool { return bool(C.uint256_is_null(self.inner)) }
 
@@ -291,15 +318,18 @@ func (self UInt256) Unserialize(s DataStream) { C.uint256_unserialize(self.inner
 
 // Get the Sha256 hash of the given DataStream content (without consuming the
 // stream).
-func (self DataStream) GetHash() UInt256 {
+func (self DataStream) GetHash(autoFree bool) UInt256 {
     res := &uint256{ inner: C.datastream_get_hash(self.inner) }
-    runtime.SetFinalizer(res, func(self UInt256) { self.free() })
+    uint256SetFinalizer(res, autoFree)
     return res
 }
 
 // Get the Sha256 hash of the given ByteArray content.
-func (self ByteArray) GetHash() UInt256 {
-    return NewDataStreamFromByteArray(self).GetHash()
+func (self ByteArray) GetHash(autoFree bool) (res UInt256) {
+    s := NewDataStreamFromByteArray(self, false)
+    res = s.GetHash(autoFree)
+    s.Free()
+    return
 }
 
 // Get hexadicemal string representation of the given DataStream content
@@ -312,9 +342,10 @@ func (self DataStream) GetHex() string {
 }
 
 // Get hexadicemal string representation of the 256-bit integer.
-func (self UInt256) GetHex() string {
-    s := NewDataStream()
+func (self UInt256) GetHex() (res string) {
+    s := NewDataStream(false)
     self.Serialize(s)
-    res := s.GetHex()
-    return res
+    res = s.GetHex()
+    s.Free()
+    return
 }

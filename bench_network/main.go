@@ -22,12 +22,15 @@ const (
     MSG_OPCODE_BYTES salticidae.Opcode = iota
 )
 
-func msgBytesSerialize(size int) salticidae.Msg {
-    serialized := salticidae.NewDataStream()
+func msgBytesSerialize(size int) (res salticidae.Msg) {
+    serialized := salticidae.NewDataStream(false)
     serialized.PutU32(salticidae.ToLittleEndianU32(uint32(size)))
     serialized.PutData(make([]byte, size))
-    return salticidae.NewMsgMovedFromByteArray(
-        MSG_OPCODE_BYTES, salticidae.NewByteArrayMovedFromDataStream(serialized))
+    ba := salticidae.NewByteArrayMovedFromDataStream(serialized, false)
+    serialized.Free()
+    res = salticidae.NewMsgMovedFromByteArray(MSG_OPCODE_BYTES, ba, false)
+    ba.Free()
+    return
 }
 
 func checkError(err *salticidae.Error) {
@@ -72,7 +75,9 @@ func onTerm(_ C.int, _ unsafe.Pointer) {
 func onTrigger(_ *C.threadcall_handle_t, userdata unsafe.Pointer) {
     id := *(*int)(userdata)
     mynet := &mynets[id]
-    mynet.net.SendMsg(msgBytesSerialize(256), mynet.conn)
+    payload := msgBytesSerialize(256)
+    mynet.net.SendMsg(payload, mynet.conn)
+    payload.Free()
     if !mynet.conn.IsTerminated() {
         mynet.tcall.AsyncCall(salticidae.ThreadCallCallback(C.onTrigger), userdata)
     }

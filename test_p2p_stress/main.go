@@ -42,7 +42,7 @@ const (
 )
 
 func msgRandSerialize(view uint32, size int) (salticidae.Msg, salticidae.UInt256) {
-    serialized := salticidae.NewDataStream()
+    serialized := salticidae.NewDataStream(true)
     serialized.PutU32(salticidae.ToLittleEndianU32(view))
     buffer := make([]byte, size)
     _, err := rand.Read(buffer)
@@ -50,32 +50,32 @@ func msgRandSerialize(view uint32, size int) (salticidae.Msg, salticidae.UInt256
         panic("rand source failed")
     }
     serialized.PutData(buffer)
-    hash := salticidae.NewByteArrayFromBytes(buffer).GetHash()
+    hash := salticidae.NewByteArrayFromBytes(buffer, true).GetHash(true)
     return salticidae.NewMsgMovedFromByteArray(
         MSG_OPCODE_RAND,
-        salticidae.NewByteArrayMovedFromDataStream(serialized)), hash
+        salticidae.NewByteArrayMovedFromDataStream(serialized, true), true), hash
 }
 
 func msgRandUnserialize(msg salticidae.Msg) (view uint32, hash salticidae.UInt256) {
     d := msg.GetPayloadByMove()
     succ := true
     view = salticidae.FromLittleEndianU32(d.GetU32(&succ))
-    hash = salticidae.NewByteArrayCopiedFromDataStream(d).GetHash()
+    hash = salticidae.NewByteArrayCopiedFromDataStream(d, true).GetHash(true)
     return
 }
 
 func msgAckSerialize(view uint32, hash salticidae.UInt256) salticidae.Msg {
-    serialized := salticidae.NewDataStream()
+    serialized := salticidae.NewDataStream(true)
     serialized.PutU32(salticidae.ToLittleEndianU32(view))
     hash.Serialize(serialized)
     return salticidae.NewMsgMovedFromByteArray(
         MSG_OPCODE_ACK,
-        salticidae.NewByteArrayMovedFromDataStream(serialized))
+        salticidae.NewByteArrayMovedFromDataStream(serialized, true), true)
 }
 
 func msgAckUnserialize(msg salticidae.Msg) (view uint32, hash salticidae.UInt256) {
     p := msg.GetPayloadByMove()
-    hash = salticidae.NewUInt256()
+    hash = salticidae.NewUInt256(true)
     succ := true
     view = salticidae.FromLittleEndianU32(p.GetU32(&succ))
     hash.Unserialize(p)

@@ -47,9 +47,9 @@ func (self X509) GetPubKey() PKey {
     return res
 }
 
-func (self X509) GetDer() ByteArray {
-    res := &byteArray{ inner: C.x509_get_der(self.inner) }
-    runtime.SetFinalizer(res, func(self ByteArray) { self.free() })
+func (self X509) GetDer(autoFree bool) ByteArray {
+    res := ByteArrayFromC(C.x509_get_der(self.inner))
+    byteArraySetFinalizer(res, autoFree)
     return res
 }
 
@@ -85,14 +85,14 @@ func NewPrivKeyFromDer(der ByteArray, err *Error) PKey {
 }
 
 func (self PKey) free() { C.pkey_free(self.inner) }
-func (self PKey) GetPubKeyDer() ByteArray {
-    res := &byteArray{ inner: C.pkey_get_pubkey_der(self.inner) }
-    runtime.SetFinalizer(res, func(self ByteArray) { self.free() })
+func (self PKey) GetPubKeyDer(autoFree bool) ByteArray {
+    res := ByteArrayFromC(C.pkey_get_pubkey_der(self.inner))
+    byteArraySetFinalizer(res, autoFree)
     return res
 }
 
-func (self PKey) GetPrivKeyDer() ByteArray {
-    res := &byteArray{ inner: C.pkey_get_privkey_der(self.inner) }
-    runtime.SetFinalizer(res, func(self ByteArray) { self.free() })
+func (self PKey) GetPrivKeyDer(autoFree bool) ByteArray {
+    res := ByteArrayFromC(C.pkey_get_privkey_der(self.inner))
+    byteArraySetFinalizer(res, autoFree)
     return res
 }
