@@ -1,6 +1,6 @@
 .PHONY: all clean
 
-all: build/test_msgnet build/test_p2p_stress build/test_msgnet_tls
+all: build/test_msgnet build/test_p2p_stress build/test_msgnet_tls build/bench_network
 
 
 salticidae/libsalticidae.so:
@@ -19,6 +19,9 @@ build/test_msgnet_tls: salticidae/libsalticidae.so test_msgnet_tls/main.go
 build/test_p2p_stress: salticidae/libsalticidae.so test_p2p_stress/main.go
 	make -C salticidae/
 	go build -o $@ github.com/Determinant/salticidae-go/test_p2p_stress
+build/bench_network: salticidae/libsalticidae.so bench_network/main.go
+	make -C salticidae/
+	go build -o $@ github.com/Determinant/salticidae-go/bench_network
 
 clean:
 	rm -rf build/

@@ -59,6 +59,11 @@ func (self MsgNetworkConn) GetAddr() NetAddr {
     return NetAddrFromC(C.msgnetwork_conn_get_addr(self.inner))
 }
 
+// Check if the connection has been terminated.
+func (self MsgNetworkConn) IsTerminated() bool {
+    return bool(C.msgnetwork_conn_is_terminated(self.inner))
+}
+
 // Get the certificate of the remote end of this connection. Use Copy() to make a
 // copy of the certificate if you want to use the certificate object beyond the
 // lifetime of the connection.
