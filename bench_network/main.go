@@ -98,15 +98,14 @@ func connHandler(_conn *C.struct_msgnetwork_conn_t, connected C.bool, userdata u
     if connected {
         if conn.GetMode() == salticidae.CONN_MODE_ACTIVE {
             fmt.Printf("[%s] connected, sending hello.\n", mynet.name)
-            mynet.conn = conn.Copy()
+            mynet.conn = conn.Copy(true)
             mynet.tcall.AsyncCall(salticidae.ThreadCallCallback(C.onTrigger), userdata)
         } else {
             fmt.Printf("[%s] passively connected, waiting for greetings.\n", mynet.name)
         }
     } else {
         fmt.Printf("[%s] disconnected, retrying.\n", mynet.name)
-        err := salticidae.NewError()
-        mynet.net.Connect(conn.GetAddr(), false, &err)
+        mynet.net.Connect(conn.GetAddr())
     }
     return true
 }
@@ -150,8 +149,7 @@ func main() {
     ec = salticidae.NewEventContext()
     err := salticidae.NewError()
 
-    aliceAddr := salticidae.NewAddrFromIPPortString("127.0.0.1:12345", &err)
-    //bobAddr := salticidae.NewAddrFromIPPortString("127.0.0.1:12346", &err)
+    aliceAddr := salticidae.NewNetAddrFromIPPortString("127.0.0.1:12345", true, &err)
 
     mynets = append(mynets, genMyNet(ec, "alice", 10, 0))
     alice := &mynets[0]
@@ -165,7 +163,7 @@ func main() {
     go func() {
         bob := &mynets[1]
         bob.net.Start()
-        bob.net.Connect(aliceAddr, false, &err); checkError(&err)
+        bob.net.Connect(aliceAddr)
         tec.Dispatch()
         bobThread <-struct{}{}
     }()

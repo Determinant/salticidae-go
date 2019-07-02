@@ -102,8 +102,7 @@ func connHandler(_conn *C.struct_msgnetwork_conn_t, connected C.bool, userdata u
         }
     } else {
         fmt.Printf("[%s] disconnected, retrying.\n", myName)
-        err := salticidae.NewError()
-        net.Connect(conn.GetAddr(), false, &err)
+        net.Connect(conn.GetAddr())
     }
     return true
 }
@@ -131,7 +130,7 @@ func genMyNet(ec salticidae.EventContext,
 
     n.net.Start()
     n.net.Listen(myAddr, &err); checkError(&err)
-    n.net.Connect(otherAddr, false, &err); checkError(&err)
+    n.net.Connect(otherAddr)
     return n
 }
 
@@ -139,8 +138,8 @@ func main() {
     ec = salticidae.NewEventContext()
     err := salticidae.NewError()
 
-    aliceAddr := salticidae.NewAddrFromIPPortString("127.0.0.1:12345", &err)
-    bobAddr := salticidae.NewAddrFromIPPortString("127.0.0.1:12346", &err)
+    aliceAddr := salticidae.NewNetAddrFromIPPortString("127.0.0.1:12345", true, &err)
+    bobAddr := salticidae.NewNetAddrFromIPPortString("127.0.0.1:12346", true, &err)
 
     alice = genMyNet(ec, "alice", aliceAddr, bobAddr)
     bob = genMyNet(ec, "bob", bobAddr, aliceAddr)

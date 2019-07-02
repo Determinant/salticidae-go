@@ -5,13 +5,13 @@ package salticidae
 import "C"
 import "runtime"
 
-// The C pointer type for a Msg object
+// The C pointer type for a Msg object.
 type CMsg = *C.msg_t
 type msg struct {
     inner CMsg
     autoFree bool
 }
-// Message sent by MsgNetwork
+// Message sent by MsgNetwork.
 type Msg = *msg
 
 // Convert an existing C pointer into a go object. Notice that when the go
@@ -19,7 +19,7 @@ type Msg = *msg
 // the extent in which the given C pointer is valid. The C memory will not be
 // deallocated when the go object is finalized by GC. This applies to all other
 // "FromC" functions.
-func MsgFromC(ptr *C.msg_t) Msg { return &msg{ inner: ptr } }
+func MsgFromC(ptr CMsg) Msg { return &msg{ inner: ptr } }
 
 func msgSetFinalizer(res Msg, autoFree bool) {
     res.autoFree = autoFree

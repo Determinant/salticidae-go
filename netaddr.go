@@ -7,7 +7,10 @@ import "runtime"
 
 // The C pointer type for a NetAddr object
 type CNetAddr = *C.netaddr_t
-type netAddr struct { inner CNetAddr }
+type netAddr struct {
+    inner CNetAddr
+    autoFree bool
+}
 // Network address object.
 type NetAddr = *netAddr
 
@@ -20,43 +23,28 @@ func NetAddrFromC(ptr CNetAddr) NetAddr {
     return &netAddr{ inner: ptr }
 }
 
-type netAddrArray struct {
-    inner *C.netaddr_array_t
+func netAddrSetFinalizer(res NetAddr, autoFree bool) {
+    res.autoFree = autoFree
+    if res != nil && autoFree {
+        runtime.SetFinalizer(res, func(self NetAddr) { self.Free() })
+    }
 }
 
-// An array of network address.
-type NetAddrArray = *netAddrArray
-
 // Create NetAddr from a TCP socket format string (e.g. 127.0.0.1:8888).
-func NewAddrFromIPPortString(addr string, err *Error) (res NetAddr) {
+func NewNetAddrFromIPPortString(addr string, autoFree bool, err *Error) (res NetAddr) {
     c_str := C.CString(addr)
     res = &netAddr{ inner: C.netaddr_new_from_sipport(c_str, err) }
     C.free(rawptr_t(c_str))
-    runtime.SetFinalizer(res, func(self NetAddr) { self.free() })
+    netAddrSetFinalizer(res, autoFree)
     return
 }
 
-// Convert a Go slice of net addresses to NetAddrArray.
-func NewAddrArrayFromAddrs(arr []NetAddr) (res NetAddrArray) {
-    size := len(arr)
-    _arr := make([]CNetAddr, size)
-    for i, v := range arr {
-        _arr[i] = v.inner
+func (self NetAddr) Free() {
+    C.netaddr_free(self.inner)
+    if self.autoFree {
+        runtime.SetFinalizer(self, nil)
     }
-    if size > 0 {
-        // FIXME: here we assume struct of a single pointer has the same memory
-        // footprint the pointer
-        base := (**C.netaddr_t)(rawptr_t(&_arr[0]))
-        res = &netAddrArray{ inner: C.netaddr_array_new_from_addrs(base, C.size_t(size)) }
-    } else {
-        res = &netAddrArray{ inner: C.netaddr_array_new() }
-    }
-    runtime.KeepAlive(_arr)
-    runtime.SetFinalizer(res, func(self NetAddrArray) { self.free() })
-    return
 }
-
-func (self NetAddr) free() { C.netaddr_free(self.inner) }
 
 // Check if two addresses are the same.
 func (self NetAddr) IsEq(other NetAddr) bool { return bool(C.netaddr_is_eq(self.inner, other.inner)) }
@@ -73,10 +61,55 @@ func (self NetAddr) GetPort() uint16 { return uint16(C.netaddr_get_port(self.inn
 // Make a copy of the object. This is required if you want to keep the NetAddr
 // returned (or passed as a callback parameter) by other salticidae methods
 // (such like MsgNetwork/PeerNetwork), unless those method return a moved object.
-func (self NetAddr) Copy() NetAddr {
+func (self NetAddr) Copy(autoFree bool) NetAddr {
     res := &netAddr{ inner: C.netaddr_copy(self.inner) }
-    runtime.SetFinalizer(res, func(self NetAddr) { self.free() })
+    netAddrSetFinalizer(res, autoFree)
     return res
 }
 
-func (self NetAddrArray) free() { C.netaddr_array_free(self.inner) }
+// The C pointer type for a NetAddrArray object.
+type CNetAddrArray = *C.netaddr_array_t
+type netAddrArray struct {
+    inner CNetAddrArray
+    autoFree bool
+}
+// An array of network address.
+type NetAddrArray = *netAddrArray
+
+func NetAddrArrayFromC(ptr CNetAddrArray) NetAddrArray {
+    return &netAddrArray{ inner: ptr }
+}
+
+func netAddrArraySetFinalizer(res NetAddrArray, autoFree bool) {
+    res.autoFree = autoFree
+    if res != nil && autoFree {
+        runtime.SetFinalizer(res, func(self NetAddrArray) { self.Free() })
+    }
+}
+
+// Convert a Go slice of net addresses to NetAddrArray.
+func NewNetAddrArrayFromAddrs(arr []NetAddr, autoFree bool) (res NetAddrArray) {
+    size := len(arr)
+    _arr := make([]CNetAddr, size)
+    for i, v := range arr {
+        _arr[i] = v.inner
+    }
+    if size > 0 {
+        // FIXME: here we assume struct of a single pointer has the same memory
+        // footprint the pointer
+        base := (**C.netaddr_t)(rawptr_t(&_arr[0]))
+        res = NetAddrArrayFromC(C.netaddr_array_new_from_addrs(base, C.size_t(size)))
+    } else {
+        res = NetAddrArrayFromC(C.netaddr_array_new())
+    }
+    runtime.KeepAlive(_arr)
+    netAddrArraySetFinalizer(res, autoFree)
+    return
+}
+
+func (self NetAddrArray) Free() {
+    C.netaddr_array_free(self.inner)
+    if self.autoFree {
+        runtime.SetFinalizer(self, nil)
+    }
+}
