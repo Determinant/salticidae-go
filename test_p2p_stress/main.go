@@ -52,15 +52,15 @@ func msgRandSerialize(view uint32, size int) (salticidae.Msg, salticidae.UInt256
     serialized.PutData(buffer)
     ba := salticidae.NewByteArrayFromBytes(buffer, false); defer ba.Free()
     payload := salticidae.NewByteArrayMovedFromDataStream(serialized, false); defer payload.Free()
-    return salticidae.NewMsgMovedFromByteArray(MSG_OPCODE_RAND, payload, true), ba.GetHash(true)
+    return salticidae.NewMsgMovedFromByteArray(MSG_OPCODE_RAND, payload, false), ba.GetHash(true)
 }
 
 func msgRandUnserialize(msg salticidae.Msg) (view uint32, hash salticidae.UInt256) {
-    d := msg.GetPayloadByMove()
+    payload := msg.GetPayloadByMove()
     succ := true
-    view = salticidae.FromLittleEndianU32(d.GetU32(&succ))
-    ba := salticidae.NewByteArrayCopiedFromDataStream(d, false); defer ba.Free()
-    hash = ba.GetHash(true)
+    view = salticidae.FromLittleEndianU32(payload.GetU32(&succ))
+    ba := salticidae.NewByteArrayCopiedFromDataStream(payload, false); defer ba.Free()
+    hash = ba.GetHash(false)
     return
 }
 
@@ -69,15 +69,15 @@ func msgAckSerialize(view uint32, hash salticidae.UInt256) salticidae.Msg {
     serialized.PutU32(salticidae.ToLittleEndianU32(view))
     hash.Serialize(serialized)
     payload := salticidae.NewByteArrayMovedFromDataStream(serialized, false); defer payload.Free()
-    return salticidae.NewMsgMovedFromByteArray(MSG_OPCODE_ACK, payload, true)
+    return salticidae.NewMsgMovedFromByteArray(MSG_OPCODE_ACK, payload, false)
 }
 
 func msgAckUnserialize(msg salticidae.Msg) (view uint32, hash salticidae.UInt256) {
-    p := msg.GetPayloadByMove()
-    hash = salticidae.NewUInt256(true)
+    payload := msg.GetPayloadByMove()
+    hash = salticidae.NewUInt256(false)
     succ := true
-    view = salticidae.FromLittleEndianU32(p.GetU32(&succ))
-    hash.Unserialize(p)
+    view = salticidae.FromLittleEndianU32(payload.GetU32(&succ))
+    hash.Unserialize(payload)
     return
 }
 
@@ -97,7 +97,6 @@ type TestContext struct {
     ncompleted int
 }
 
-
 type AppContext struct {
     addr salticidae.NetAddr
     ec salticidae.EventContext
@@ -115,7 +114,7 @@ func (self AppContext) Free() {
 }
 
 func NewTestContext() TestContext {
-    return TestContext { ncompleted: 0 }
+    return TestContext { view: 0, ncompleted: 0 }
 }
 
 func addr2id(addr salticidae.NetAddr) uint64 {
@@ -133,7 +132,7 @@ func (self AppContext) getTC(addr_id uint64) (_tc *TestContext) {
 }
 
 func sendRand(size int, app *AppContext, conn salticidae.MsgNetworkConn, tc *TestContext) {
-    msg, hash := msgRandSerialize(tc.view, size)
+    msg, hash := msgRandSerialize(tc.view, size); defer msg.Free()
     tc.hash = hash
     app.net.AsMsgNetwork().SendMsg(msg, conn)
 }
@@ -165,14 +164,14 @@ func onReceiveRand(_msg *C.struct_msg_t, _conn *C.struct_msgnetwork_conn_t, _ un
     msg := salticidae.MsgFromC(salticidae.CMsg(_msg))
     conn := salticidae.MsgNetworkConnFromC(salticidae.CMsgNetworkConn(_conn))
     net := conn.GetNet()
-    view, hash := msgRandUnserialize(msg)
-    ack := msgAckSerialize(view, hash)
+    view, hash := msgRandUnserialize(msg); defer hash.Free()
+    ack := msgAckSerialize(view, hash); defer ack.Free()
     net.SendMsg(ack, conn)
 }
 
 //export onReceiveAck
 func onReceiveAck(_msg *C.struct_msg_t, _conn *C.struct_msgnetwork_conn_t, userdata unsafe.Pointer) {
-    view, hash := msgAckUnserialize(salticidae.MsgFromC(salticidae.CMsg(_msg)))
+    view, hash := msgAckUnserialize(salticidae.MsgFromC(salticidae.CMsg(_msg))); defer hash.Free()
     id := int(*(*C.int)(userdata))
     app := &apps[id]
     conn := salticidae.MsgNetworkConnFromC(salticidae.CMsgNetworkConn(_conn))
@@ -201,6 +200,7 @@ func onReceiveAck(_msg *C.struct_msg_t, _conn *C.struct_msgnetwork_conn_t, userd
         if tc.timer != nil {
             C.msgnetwork_conn_free(tc.timer_ctx.conn)
             C.free(unsafe.Pointer(tc.timer_ctx))
+            tc.timer.Del()
         }
         tc.timer = salticidae.NewTimerEvent(app.ec, salticidae.TimerEventCallback(C.onTimeout), unsafe.Pointer(ctx))
         tc.timer_ctx = ctx
