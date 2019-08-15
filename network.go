@@ -7,7 +7,8 @@ import "runtime"
 
 // The C pointer type for a MsgNetwork handle.
 type CMsgNetwork = *C.msgnetwork_t
-type msgNetwork struct { inner CMsgNetwork }
+type msgNetwork struct{ inner CMsgNetwork }
+
 // The handle for a message network.
 type MsgNetwork = *msgNetwork
 
@@ -17,25 +18,26 @@ type MsgNetwork = *msgNetwork
 // deallocated when the go object is finalized by GC. This applies to all other
 // "FromC" functions.
 func MsgNetworkFromC(ptr CMsgNetwork) MsgNetwork {
-    return &msgNetwork{ inner: ptr }
+	return &msgNetwork{inner: ptr}
 }
 
 // The C pointer type for a MsgNetworkConn handle.
 type CMsgNetworkConn = *C.msgnetwork_conn_t
 type msgNetworkConn struct {
-    inner CMsgNetworkConn
-    autoFree bool
+	inner    CMsgNetworkConn
+	autoFree bool
 }
+
 // The handle for a message network connection.
 type MsgNetworkConn = *msgNetworkConn
 
 func MsgNetworkConnFromC(ptr CMsgNetworkConn) MsgNetworkConn {
-    return &msgNetworkConn{ inner: ptr }
+	return &msgNetworkConn{inner: ptr}
 }
 
 var (
-    CONN_MODE_ACTIVE = MsgNetworkConnMode(C.CONN_MODE_ACTIVE)
-    CONN_MODE_PASSIVE = MsgNetworkConnMode(C.CONN_MODE_PASSIVE)
+	CONN_MODE_ACTIVE  = MsgNetworkConnMode(C.CONN_MODE_ACTIVE)
+	CONN_MODE_PASSIVE = MsgNetworkConnMode(C.CONN_MODE_PASSIVE)
 )
 
 // The connection mode. CONN_MODE_ACTIVE: a connection established from the
@@ -44,73 +46,73 @@ var (
 type MsgNetworkConnMode = C.msgnetwork_conn_mode_t
 
 func msgNetworkConnSetFinalizer(res MsgNetworkConn, autoFree bool) {
-    res.autoFree = autoFree
-    if res != nil && autoFree {
-        runtime.SetFinalizer(res, func(self MsgNetworkConn) { self.Free() })
-    }
+	res.autoFree = autoFree
+	if res != nil && autoFree {
+		runtime.SetFinalizer(res, func(self MsgNetworkConn) { self.Free() })
+	}
 }
 
 func (self MsgNetworkConn) Free() {
-    C.msgnetwork_conn_free(self.inner)
-    if self.autoFree {
-        runtime.SetFinalizer(self, nil)
-    }
+	C.msgnetwork_conn_free(self.inner)
+	if self.autoFree {
+		runtime.SetFinalizer(self, nil)
+	}
 }
 
 // Get the corresponding MsgNetwork handle that manages this connection. The
 // returned handle is only valid during the lifetime of this connection.
 func (self MsgNetworkConn) GetNet() MsgNetwork {
-    return MsgNetworkFromC(C.msgnetwork_conn_get_net(self.inner))
+	return MsgNetworkFromC(C.msgnetwork_conn_get_net(self.inner))
 }
 
 func (self MsgNetworkConn) GetMode() MsgNetworkConnMode {
-    return C.msgnetwork_conn_get_mode(self.inner)
+	return C.msgnetwork_conn_get_mode(self.inner)
 }
 
 // Get the address of the remote end of this connection. Use Copy() to make a
 // copy of the address if you want to use the address object beyond the
 // lifetime of the connection.
 func (self MsgNetworkConn) GetAddr() NetAddr {
-    return NetAddrFromC(C.msgnetwork_conn_get_addr(self.inner))
+	return NetAddrFromC(C.msgnetwork_conn_get_addr(self.inner))
 }
 
 // Check if the connection has been terminated.
 func (self MsgNetworkConn) IsTerminated() bool {
-    return bool(C.msgnetwork_conn_is_terminated(self.inner))
+	return bool(C.msgnetwork_conn_is_terminated(self.inner))
 }
 
 // Get the certificate of the remote end of this connection. Use Copy() to make a
 // copy of the certificate if you want to use the certificate object beyond the
 // lifetime of the connection.
 func (self MsgNetworkConn) GetPeerCert() X509 {
-    return &x509{ inner: C.msgnetwork_conn_get_peer_cert(self.inner) }
+	return &x509{inner: C.msgnetwork_conn_get_peer_cert(self.inner)}
 }
 
 // Make a copy of the object. This is required if you want to keep the
 // connection passed as a callback parameter by other salticidae methods (such
 // like MsgNetwork/PeerNetwork).
 func (self MsgNetworkConn) Copy(autoFree bool) MsgNetworkConn {
-    res := MsgNetworkConnFromC(C.msgnetwork_conn_copy(self.inner))
-    msgNetworkConnSetFinalizer(res, autoFree)
-    return res
+	res := MsgNetworkConnFromC(C.msgnetwork_conn_copy(self.inner))
+	msgNetworkConnSetFinalizer(res, autoFree)
+	return res
 }
-
 
 // The C pointer type for a MsgNetworkConfig object.
 type CMsgNetworkConfig = *C.msgnetwork_config_t
-type msgNetworkConfig struct { inner CMsgNetworkConfig }
+type msgNetworkConfig struct{ inner CMsgNetworkConfig }
+
 // Configuration for MsgNetwork.
 type MsgNetworkConfig = *msgNetworkConfig
 
 func MsgNetworkConfigFromC(ptr CMsgNetworkConfig) MsgNetworkConfig {
-    return &msgNetworkConfig{ inner: ptr }
+	return &msgNetworkConfig{inner: ptr}
 }
 
 // Create the configuration object with default settings.
 func NewMsgNetworkConfig() MsgNetworkConfig {
-    res := MsgNetworkConfigFromC(C.msgnetwork_config_new())
-    runtime.SetFinalizer(res, func(self MsgNetworkConfig) { self.free() })
-    return res
+	res := MsgNetworkConfigFromC(C.msgnetwork_config_new())
+	runtime.SetFinalizer(res, func(self MsgNetworkConfig) { self.free() })
+	return res
 }
 
 func (self MsgNetworkConfig) free() { C.msgnetwork_config_free(self.inner) }
@@ -119,62 +121,62 @@ func (self MsgNetworkConfig) free() { C.msgnetwork_config_free(self.inner) }
 // Usually the default value is good enough. This is used to make the tradeoff
 // between the event loop fairness and the amortization of syscall cost.
 func (self MsgNetworkConfig) BurstSize(size int) {
-    C.msgnetwork_config_burst_size(self.inner, C.size_t(size))
+	C.msgnetwork_config_burst_size(self.inner, C.size_t(size))
 }
 
 // Set the maximum backlogs (see POSIX TCP backlog).
 func (self MsgNetworkConfig) MaxListenBacklog(backlog int) {
-    C.msgnetwork_config_max_listen_backlog(self.inner, C.int(backlog))
+	C.msgnetwork_config_max_listen_backlog(self.inner, C.int(backlog))
 }
 
 // Set the timeout for connecting to the remote (in seconds).
 func (self MsgNetworkConfig) ConnServerTimeout(timeout float64) {
-    C.msgnetwork_config_conn_server_timeout(self.inner, C.double(timeout))
+	C.msgnetwork_config_conn_server_timeout(self.inner, C.double(timeout))
 }
 
 // Set the size for an inbound data chunk (per read() syscall).
 func (self MsgNetworkConfig) SegBuffSize(size int) {
-    C.msgnetwork_config_seg_buff_size(self.inner, C.size_t(size))
+	C.msgnetwork_config_seg_buff_size(self.inner, C.size_t(size))
 }
 
 // Set the number of worker threads.
 func (self MsgNetworkConfig) NWorker(nworker int) {
-    C.msgnetwork_config_nworker(self.inner, C.size_t(nworker))
+	C.msgnetwork_config_nworker(self.inner, C.size_t(nworker))
 }
 
 // Set the capacity of the send buffer.
 func (self MsgNetworkConfig) QueueCapacity(capacity int) {
-    C.msgnetwork_config_queue_capacity(self.inner, C.size_t(capacity))
+	C.msgnetwork_config_queue_capacity(self.inner, C.size_t(capacity))
 }
 
 // Specify whether to use SSL/TLS. When this flag is enabled, MsgNetwork uses
 // TLSKey (or TLSKeyFile) or TLSCert (or TLSCertFile) to setup the underlying
 // OpenSSL.
 func (self MsgNetworkConfig) EnableTLS(enabled bool) {
-    C.msgnetwork_config_enable_tls(self.inner, C.bool(enabled))
+	C.msgnetwork_config_enable_tls(self.inner, C.bool(enabled))
 }
 
 // Load the TLS key from a file. The file should be an unencrypted PEM file.
 // Use TLSKey() instead for more complex usage.
 func (self MsgNetworkConfig) TLSKeyFile(fname string) {
-    c_str := C.CString(fname)
-    C.msgnetwork_config_tls_key_file(self.inner, c_str)
-    C.free(rawptr_t(c_str))
+	c_str := C.CString(fname)
+	C.msgnetwork_config_tls_key_file(self.inner, c_str)
+	C.free(rawptr_t(c_str))
 }
 
 // Load the TLS certificate from a file. The file should be an unencrypted
 // (X509) PEM file.  Use TLSCert() instead for more complex usage.
 func (self MsgNetworkConfig) TLSCertFile(fname string) {
-    c_str := C.CString(fname)
-    C.msgnetwork_config_tls_cert_file(self.inner, c_str)
-    C.free(rawptr_t(c_str))
+	c_str := C.CString(fname)
+	C.msgnetwork_config_tls_cert_file(self.inner, c_str)
+	C.free(rawptr_t(c_str))
 }
 
 // Use the given TLS key. This overrides TLSKeyFile(). pkey will be moved and
 // kept by the library. Thus, no methods of msg involving the payload should be
 // called afterwards.
 func (self MsgNetworkConfig) TLSKeyByMove(pkey PKey) {
-    C.msgnetwork_config_tls_key_by_move(self.inner, pkey.inner)
+	C.msgnetwork_config_tls_key_by_move(self.inner, pkey.inner)
 }
 
 //// Load the TLS certificate from a file. The file should be an unencrypted
@@ -187,12 +189,12 @@ func (self MsgNetworkConfig) TLSKeyByMove(pkey PKey) {
 
 // Create a message network handle which is attached to given event loop.
 func NewMsgNetwork(ec EventContext, config MsgNetworkConfig, err *Error) MsgNetwork {
-    res := MsgNetworkFromC(C.msgnetwork_new(ec.inner, config.inner, err))
-    if res != nil {
-        ec.attach(rawptr_t(res.inner), res)
-        runtime.SetFinalizer(res, func(self MsgNetwork) { self.free() })
-    }
-    return res
+	res := MsgNetworkFromC(C.msgnetwork_new(ec.inner, config.inner, err))
+	if res != nil {
+		ec.attach(rawptr_t(res.inner), res)
+		runtime.SetFinalizer(res, func(self MsgNetwork) { self.free() })
+	}
+	return res
 }
 
 func (self MsgNetwork) free() { C.msgnetwork_free(self.inner) }
@@ -202,14 +204,16 @@ func (self MsgNetwork) free() { C.msgnetwork_free(self.inner) }
 func (self MsgNetwork) Start() { C.msgnetwork_start(self.inner) }
 
 // Listen to the specified network address.
-func (self MsgNetwork) Listen(addr NetAddr, err *Error) { C.msgnetwork_listen(self.inner, addr.inner, err) }
+func (self MsgNetwork) Listen(addr NetAddr, err *Error) {
+	C.msgnetwork_listen(self.inner, addr.inner, err)
+}
 
 // Stop the message network. No other methods should be called after this.
 func (self MsgNetwork) Stop() { C.msgnetwork_stop(self.inner) }
 
 // Send a message through the given connection.
 func (self MsgNetwork) SendMsg(msg Msg, conn MsgNetworkConn) bool {
-    return bool(C.msgnetwork_send_msg(self.inner, msg.inner, conn.inner))
+	return bool(C.msgnetwork_send_msg(self.inner, msg.inner, conn.inner))
 }
 
 // Send a message through the given connection, using a worker thread to
@@ -217,21 +221,21 @@ func (self MsgNetwork) SendMsg(msg Msg, conn MsgNetworkConn) bool {
 // msg will be moved and sent. Thus, no methods of msg involving the payload
 // should be called afterwards.
 func (self MsgNetwork) SendMsgDeferredByMove(msg Msg, conn MsgNetworkConn) int32 {
-    return int32(C.msgnetwork_send_msg_deferred_by_move(self.inner, msg.inner, conn.inner))
+	return int32(C.msgnetwork_send_msg_deferred_by_move(self.inner, msg.inner, conn.inner))
 }
 
 // Try to connect to a remote address. The connection handle is returned. The
 // returned connection handle could be kept in your program.
 func (self MsgNetwork) ConnectSync(addr NetAddr, autoFree bool, err *Error) MsgNetworkConn {
-    res := MsgNetworkConnFromC(C.msgnetwork_connect_sync(self.inner, addr.inner, err))
-    msgNetworkConnSetFinalizer(res, autoFree)
-    return res
+	res := MsgNetworkConnFromC(C.msgnetwork_connect_sync(self.inner, addr.inner, err))
+	msgNetworkConnSetFinalizer(res, autoFree)
+	return res
 }
 
 // Try to connect to a remote address (async). It returns an id which could be
 // used to identify the corresponding error in the error callback.
 func (self MsgNetwork) Connect(addr NetAddr) int32 {
-    return int32(C.msgnetwork_connect(self.inner, addr.inner))
+	return int32(C.msgnetwork_connect(self.inner, addr.inner))
 }
 
 // Terminate the given connection.
@@ -240,10 +244,12 @@ func (self MsgNetwork) Terminate(conn MsgNetworkConn) { C.msgnetwork_terminate(s
 // The C function pointer type which takes msg_t*, msgnetwork_conn_t* and void*
 // (passing in the custom user data allocated by C.malloc) as parameters.
 type MsgNetworkMsgCallback = C.msgnetwork_msg_callback_t
+
 // The C function pointer type which takes msgnetwork_conn_t*, bool (true for
 // the connection is established, false for the connection is terminated) and
 // void* as parameters.
 type MsgNetworkConnCallback = C.msgnetwork_conn_callback_t
+
 // The C function Pointer type which takes SalticidaeCError* and void* as parameters.
 type MsgNetworkErrorCallback = C.msgnetwork_error_callback_t
 
@@ -251,53 +257,55 @@ type MsgNetworkErrorCallback = C.msgnetwork_error_callback_t
 // callback function will be invoked upon the delivery of each message with the
 // given opcode, by the thread of the event loop the MsgNetwork is attached to.
 func (self MsgNetwork) RegHandler(opcode Opcode, callback MsgNetworkMsgCallback, userdata rawptr_t) {
-    C.msgnetwork_reg_handler(self.inner, C._opcode_t(opcode), callback, userdata)
+	C.msgnetwork_reg_handler(self.inner, C._opcode_t(opcode), callback, userdata)
 }
 
 // Register a connection handler invoked when the connection state is changed.
 func (self MsgNetwork) RegConnHandler(callback MsgNetworkConnCallback, userdata rawptr_t) {
-    C.msgnetwork_reg_conn_handler(self.inner, callback, userdata)
+	C.msgnetwork_reg_conn_handler(self.inner, callback, userdata)
 }
 
 // Register an error handler invoked when there is recoverable errors during any
 // asynchronous call/execution inside the MsgNetwork.
 func (self MsgNetwork) RegErrorHandler(callback MsgNetworkErrorCallback, userdata rawptr_t) {
-    C.msgnetwork_reg_error_handler(self.inner, callback, userdata)
+	C.msgnetwork_reg_error_handler(self.inner, callback, userdata)
 }
 
 // The C pointer type for a PeerNetwork handle.
 type CPeerNetwork = *C.peernetwork_t
-type peerNetwork struct { inner CPeerNetwork }
+type peerNetwork struct{ inner CPeerNetwork }
+
 // The handle for a peer-to-peer network.
 type PeerNetwork = *peerNetwork
 
 func PeerNetworkFromC(ptr CPeerNetwork) PeerNetwork {
-    return &peerNetwork{ inner: ptr }
+	return &peerNetwork{inner: ptr}
 }
 
 // The C pointer type for a PeerNetworkConn handle.
 type CPeerNetworkConn = *C.peernetwork_conn_t
 type peerNetworkConn struct {
-    inner CPeerNetworkConn
-    autoFree bool
+	inner    CPeerNetworkConn
+	autoFree bool
 }
+
 // The handle for a PeerNetwork connection.
 type PeerNetworkConn = *peerNetworkConn
 
 func PeerNetworkConnFromC(ptr CPeerNetworkConn) PeerNetworkConn {
-    return &peerNetworkConn{ inner: ptr }
+	return &peerNetworkConn{inner: ptr}
 }
 
 func peerNetworkConnSetFinalizer(res PeerNetworkConn, autoFree bool) {
-    res.autoFree = autoFree
-    if res != nil && autoFree {
-        runtime.SetFinalizer(res, func(self PeerNetworkConn) { self.Free() })
-    }
+	res.autoFree = autoFree
+	if res != nil && autoFree {
+		runtime.SetFinalizer(res, func(self PeerNetworkConn) { self.Free() })
+	}
 }
 
 var (
-    ADDR_BASED = PeerNetworkIdMode(C.ID_MODE_ADDR_BASED)
-    CERT_BASED = PeerNetworkIdMode(C.ID_MODE_CERT_BASED)
+	ADDR_BASED = PeerNetworkIdMode(C.ID_MODE_ADDR_BASED)
+	CERT_BASED = PeerNetworkIdMode(C.ID_MODE_CERT_BASED)
 )
 
 // The identity mode.  ID_MODE_IP_BASED: a remote peer is identified by the IP
@@ -307,58 +315,59 @@ type PeerNetworkIdMode = C.peernetwork_id_mode_t
 
 // The C pointer type for a PeerNetworkConfig handle.
 type CPeerNetworkConfig = *C.peernetwork_config_t
-type peerNetworkConfig struct { inner CPeerNetworkConfig }
+type peerNetworkConfig struct{ inner CPeerNetworkConfig }
+
 // Configuration for PeerNetwork.
 type PeerNetworkConfig = *peerNetworkConfig
 
 func PeerNetworkConfigFromC(ptr CPeerNetworkConfig) PeerNetworkConfig {
-    return &peerNetworkConfig{ inner: ptr }
+	return &peerNetworkConfig{inner: ptr}
 }
 
 // Create the configuration object with default settings.
 func NewPeerNetworkConfig() PeerNetworkConfig {
-    res := PeerNetworkConfigFromC(C.peernetwork_config_new())
-    runtime.SetFinalizer(res, func(self PeerNetworkConfig) { self.free() })
-    return res
+	res := PeerNetworkConfigFromC(C.peernetwork_config_new())
+	runtime.SetFinalizer(res, func(self PeerNetworkConfig) { self.free() })
+	return res
 }
 
 func (self PeerNetworkConfig) free() { C.peernetwork_config_free(self.inner) }
 
 // Set the connection retry delay (in seconds).
 func (self PeerNetworkConfig) RetryConnDelay(t_sec float64) {
-    C.peernetwork_config_retry_conn_delay(self.inner, C.double(t_sec))
+	C.peernetwork_config_retry_conn_delay(self.inner, C.double(t_sec))
 }
 
 // Set the period for sending ping messsages (in seconds).
 func (self PeerNetworkConfig) PingPeriod(t_sec float64) {
-    C.peernetwork_config_ping_period(self.inner, C.double(t_sec))
+	C.peernetwork_config_ping_period(self.inner, C.double(t_sec))
 }
 
 // Set the time it takes after sending a ping message before a connection is
 // considered as broken.
 func (self PeerNetworkConfig) ConnTimeout(t_sec float64) {
-    C.peernetwork_config_conn_timeout(self.inner, C.double(t_sec))
+	C.peernetwork_config_conn_timeout(self.inner, C.double(t_sec))
 }
 
 // Set the identity mode.
 func (self PeerNetworkConfig) IdMode(mode PeerNetworkIdMode) {
-    C.peernetwork_config_id_mode(self.inner, mode)
+	C.peernetwork_config_id_mode(self.inner, mode)
 }
 
 // Use the PeerNetworkConfig object as a MsgNetworkConfig object (to invoke the
 // methods inherited from MsgNetworkConfig, such as NWorker).
 func (self PeerNetworkConfig) AsMsgNetworkConfig() MsgNetworkConfig {
-    return MsgNetworkConfigFromC(C.peernetwork_config_as_msgnetwork_config(self.inner))
+	return MsgNetworkConfigFromC(C.peernetwork_config_as_msgnetwork_config(self.inner))
 }
 
 // Create a peer-to-peer message network handle.
 func NewPeerNetwork(ec EventContext, config PeerNetworkConfig, err *Error) PeerNetwork {
-    res := PeerNetworkFromC(C.peernetwork_new(ec.inner, config.inner, err))
-    if res != nil {
-        ec.attach(rawptr_t(res.inner), res)
-        runtime.SetFinalizer(res, func(self PeerNetwork) { self.free() })
-    }
-    return res
+	res := PeerNetworkFromC(C.peernetwork_new(ec.inner, config.inner, err))
+	if res != nil {
+		ec.attach(rawptr_t(res.inner), res)
+		runtime.SetFinalizer(res, func(self PeerNetwork) { self.free() })
+	}
+	return res
 }
 
 func (self PeerNetwork) free() { C.peernetwork_free(self.inner) }
@@ -373,74 +382,76 @@ func (self PeerNetwork) AddPeer(addr NetAddr) { C.peernetwork_add_peer(self.inne
 func (self PeerNetwork) DelPeer(addr NetAddr) { C.peernetwork_del_peer(self.inner, addr.inner) }
 
 // Test whether a peer is already in the list.
-func (self PeerNetwork) HasPeer(addr NetAddr) bool { return bool(C.peernetwork_has_peer(self.inner, addr.inner)) }
+func (self PeerNetwork) HasPeer(addr NetAddr) bool {
+	return bool(C.peernetwork_has_peer(self.inner, addr.inner))
+}
 
 // Get the connection of the known peer. The connection handle is returned. The
 // returned connection handle could be kept in your program.
 func (self PeerNetwork) GetPeerConn(addr NetAddr, autoFree bool, err *Error) PeerNetworkConn {
-    res := PeerNetworkConnFromC(C.peernetwork_get_peer_conn(self.inner, addr.inner, err))
-    peerNetworkConnSetFinalizer(res, autoFree)
-    return res
+	res := PeerNetworkConnFromC(C.peernetwork_get_peer_conn(self.inner, addr.inner, err))
+	peerNetworkConnSetFinalizer(res, autoFree)
+	return res
 }
 
 // Use the PeerNetwork handle as a MsgNetwork handle (to invoke the methods
 // inherited from MsgNetwork, such as RegHandler).
 func (self PeerNetwork) AsMsgNetwork() MsgNetwork {
-    return MsgNetworkFromC(C.peernetwork_as_msgnetwork(self.inner))
+	return MsgNetworkFromC(C.peernetwork_as_msgnetwork(self.inner))
 }
 
 // Use the MsgNetwork handle as a PeerNetwork handle (forcing the conversion).
 func (self MsgNetwork) AsPeerNetworkUnsafe() PeerNetwork {
-    return PeerNetworkFromC(C.msgnetwork_as_peernetwork_unsafe(self.inner))
+	return PeerNetworkFromC(C.msgnetwork_as_peernetwork_unsafe(self.inner))
 }
 
 // Create a MsgNetworkConn handle from a PeerNetworkConn (representing the same
 // connection).
 func NewMsgNetworkConnFromPeerNetworkConn(conn PeerNetworkConn, autoFree bool) MsgNetworkConn {
-    res := MsgNetworkConnFromC(C.msgnetwork_conn_new_from_peernetwork_conn(conn.inner))
-    msgNetworkConnSetFinalizer(res, autoFree)
-    return res
+	res := MsgNetworkConnFromC(C.msgnetwork_conn_new_from_peernetwork_conn(conn.inner))
+	msgNetworkConnSetFinalizer(res, autoFree)
+	return res
 }
 
 // Create a PeerNetworkConn handle from a MsgNetworkConn (representing the same
 // connection and forcing the conversion).
 func NewPeerNetworkConnFromMsgNetworkConnUnsafe(conn MsgNetworkConn, autoFree bool) PeerNetworkConn {
-    res := PeerNetworkConnFromC(C.peernetwork_conn_new_from_msgnetwork_conn_unsafe(conn.inner))
-    peerNetworkConnSetFinalizer(res, autoFree)
-    return res
+	res := PeerNetworkConnFromC(C.peernetwork_conn_new_from_msgnetwork_conn_unsafe(conn.inner))
+	peerNetworkConnSetFinalizer(res, autoFree)
+	return res
 }
 
 // Make a copy of the connection handle.
 func (self PeerNetworkConn) Copy(autoFree bool) PeerNetworkConn {
-    res := PeerNetworkConnFromC(C.peernetwork_conn_copy(self.inner))
-    peerNetworkConnSetFinalizer(res, autoFree)
-    return res
+	res := PeerNetworkConnFromC(C.peernetwork_conn_copy(self.inner))
+	peerNetworkConnSetFinalizer(res, autoFree)
+	return res
 }
 
 // Get the listening address of the remote peer (no Copy() is needed).
 func (self PeerNetworkConn) GetPeerAddr(autoFree bool) NetAddr {
-    res := NetAddrFromC(C.peernetwork_conn_get_peer_addr(self.inner))
-    netAddrSetFinalizer(res, autoFree)
-    return res
+	res := NetAddrFromC(C.peernetwork_conn_get_peer_addr(self.inner))
+	netAddrSetFinalizer(res, autoFree)
+	return res
 }
 
 func (self PeerNetworkConn) Free() {
-    C.peernetwork_conn_free(self.inner)
-    if self.autoFree {
-        runtime.SetFinalizer(self, nil)
-    }
+	C.peernetwork_conn_free(self.inner)
+	if self.autoFree {
+		runtime.SetFinalizer(self, nil)
+	}
 }
 
 // Listen to the specified network address. Notice that this method overrides
 // Listen() in MsgNetwork, so you should always call this one instead of
 // AsMsgNetwork().Listen().
 func (self PeerNetwork) Listen(listenAddr NetAddr, err *Error) {
-    C.peernetwork_listen(self.inner, listenAddr.inner, err)
+	C.peernetwork_listen(self.inner, listenAddr.inner, err)
 }
 
 // Send a message to the given peer.
 func (self PeerNetwork) SendMsg(msg Msg, addr NetAddr) bool {
-    return bool(C.peernetwork_send_msg(self.inner, msg.inner, addr.inner))
+	return bool(C.peernetwork_send_msg(self.inner, msg.inner, addr.inner))
 }
 
 // Send a message to the given peer, using a worker thread to seralize and put
@@ -448,17 +459,17 @@ func (self PeerNetwork) SendMsg(msg Msg, addr NetAddr) bool {
 // moved and sent. Thus, no methods of msg involving the payload should be
 // called afterwards.
 func (self PeerNetwork) SendMsgDeferredByMove(msg Msg, addr NetAddr) int32 {
-    return int32(C.peernetwork_send_msg_deferred_by_move(self.inner, msg.inner, addr.inner))
+	return int32(C.peernetwork_send_msg_deferred_by_move(self.inner, msg.inner, addr.inner))
 }
 
 // Send a message to the given list of peers. The payload contained in the
 // given msg will be moved and sent. Thus, no methods of msg involving the
 // payload should be called afterwards.
 func (self PeerNetwork) MulticastMsgByMove(msg Msg, addrs []NetAddr) (res int32) {
-    na := NewNetAddrArrayFromAddrs(addrs, false)
-    res = int32(C.peernetwork_multicast_msg_by_move(self.inner, msg.inner, na.inner))
-    na.Free()
-    return res
+	na := NewNetAddrArrayFromAddrs(addrs, false)
+	res = int32(C.peernetwork_multicast_msg_by_move(self.inner, msg.inner, na.inner))
+	na.Free()
+	return res
 }
 
 // The C function pointer type which takes peernetwork_conn_t*, bool and void*
@@ -467,7 +478,7 @@ type PeerNetworkPeerCallback = C.peernetwork_peer_callback_t
 
 // Register a connection handler invoked when p2p connection is established/broken.
 func (self PeerNetwork) RegPeerHandler(callback PeerNetworkPeerCallback, userdata rawptr_t) {
-    C.peernetwork_reg_peer_handler(self.inner, callback, userdata)
+	C.peernetwork_reg_peer_handler(self.inner, callback, userdata)
 }
 
 // The C function pointer type which takes netaddr_t*, x509_t* and void* (passing in the
@@ -479,47 +490,49 @@ type PeerNetworkUnknownPeerCallback = C.peernetwork_unknown_peer_callback_t
 // connection was rejected, and you can call AddPeer() to enroll this peer if
 // you hope to establish the connection soon.
 func (self PeerNetwork) RegUnknownPeerHandler(callback PeerNetworkUnknownPeerCallback, userdata rawptr_t) {
-    C.peernetwork_reg_unknown_peer_handler(self.inner, callback, userdata)
+	C.peernetwork_reg_unknown_peer_handler(self.inner, callback, userdata)
 }
 
 // The C pointer type for a ClientNetwork handle.
 type CClientNetwork = *C.clientnetwork_t
-type clientNetwork struct { inner CClientNetwork }
+type clientNetwork struct{ inner CClientNetwork }
+
 // The handle for a client-server network.
 type ClientNetwork = *clientNetwork
 
 func ClientNetworkFromC(ptr CClientNetwork) ClientNetwork {
-    return &clientNetwork{ inner: ptr }
+	return &clientNetwork{inner: ptr}
 }
 
 // The C pointer type for a ClientNetworkConn handle.
 type CClientNetworkConn = *C.clientnetwork_conn_t
 type clientNetworkConn struct {
-    inner CClientNetworkConn
-    autoFree bool
+	inner    CClientNetworkConn
+	autoFree bool
 }
+
 // The handle for a ClientNetwork connection.
 type ClientNetworkConn = *clientNetworkConn
 
 func ClientNetworkConnFromC(ptr CClientNetworkConn) ClientNetworkConn {
-    return &clientNetworkConn{ inner: ptr }
+	return &clientNetworkConn{inner: ptr}
 }
 
 func clientNetworkConnSetFinalizer(res ClientNetworkConn, autoFree bool) {
-    res.autoFree = autoFree
-    if res != nil && autoFree {
-        runtime.SetFinalizer(res, func(self ClientNetworkConn) { self.Free() })
-    }
+	res.autoFree = autoFree
+	if res != nil && autoFree {
+		runtime.SetFinalizer(res, func(self ClientNetworkConn) { self.Free() })
+	}
 }
 
 // Create a client-server message network handle.
 func NewClientNetwork(ec EventContext, config MsgNetworkConfig, err *Error) ClientNetwork {
-    res := ClientNetworkFromC(C.clientnetwork_new(ec.inner, config.inner, err))
-    if res != nil {
-        ec.attach(rawptr_t(res.inner), res)
-        runtime.SetFinalizer(res, func(self ClientNetwork) { self.free() })
-    }
-    return res
+	res := ClientNetworkFromC(C.clientnetwork_new(ec.inner, config.inner, err))
+	if res != nil {
+		ec.attach(rawptr_t(res.inner), res)
+		runtime.SetFinalizer(res, func(self ClientNetwork) { self.free() })
+	}
+	return res
 }
 
 func (self ClientNetwork) free() { C.clientnetwork_free(self.inner) }
@@ -527,47 +540,47 @@ func (self ClientNetwork) free() { C.clientnetwork_free(self.inner) }
 // Use the ClientNetwork handle as a MsgNetwork handle (to invoke the methods
 // inherited from MsgNetwork, such as RegHandler).
 func (self ClientNetwork) AsMsgNetwork() MsgNetwork {
-    return MsgNetworkFromC(C.clientnetwork_as_msgnetwork(self.inner))
+	return MsgNetworkFromC(C.clientnetwork_as_msgnetwork(self.inner))
 }
 
 // Use the MsgNetwork handle as a ClientNetwork handle (forcing the conversion).
 func (self MsgNetwork) AsClientNetworkUnsafe() ClientNetwork {
-    return ClientNetworkFromC(C.msgnetwork_as_clientnetwork_unsafe(self.inner))
+	return ClientNetworkFromC(C.msgnetwork_as_clientnetwork_unsafe(self.inner))
 }
 
 // Create a MsgNetworkConn handle from a ClientNetworkConn (representing the same
 // connection).
 func NewMsgNetworkConnFromClientNetworkConn(conn ClientNetworkConn, autoFree bool) MsgNetworkConn {
-    res := MsgNetworkConnFromC(C.msgnetwork_conn_new_from_clientnetwork_conn(conn.inner))
-    msgNetworkConnSetFinalizer(res, autoFree)
-    return res
+	res := MsgNetworkConnFromC(C.msgnetwork_conn_new_from_clientnetwork_conn(conn.inner))
+	msgNetworkConnSetFinalizer(res, autoFree)
+	return res
 }
 
 // Create a ClientNetworkConn handle from a MsgNetworkConn (representing the same
 // connection and forcing the conversion).
 func NewClientNetworkConnFromMsgNetworkConnUnsafe(conn MsgNetworkConn, autoFree bool) ClientNetworkConn {
-    res := ClientNetworkConnFromC(C.clientnetwork_conn_new_from_msgnetwork_conn_unsafe(conn.inner))
-    clientNetworkConnSetFinalizer(res, autoFree)
-    return res
+	res := ClientNetworkConnFromC(C.clientnetwork_conn_new_from_msgnetwork_conn_unsafe(conn.inner))
+	clientNetworkConnSetFinalizer(res, autoFree)
+	return res
 }
 
 // Make a copy of the connection handle.
 func (self ClientNetworkConn) Copy(autoFree bool) ClientNetworkConn {
-    res := ClientNetworkConnFromC(C.clientnetwork_conn_copy(self.inner))
-    clientNetworkConnSetFinalizer(res, autoFree)
-    return res
+	res := ClientNetworkConnFromC(C.clientnetwork_conn_copy(self.inner))
+	clientNetworkConnSetFinalizer(res, autoFree)
+	return res
 }
 
 func (self ClientNetworkConn) Free() {
-    C.clientnetwork_conn_free(self.inner)
-    if self.autoFree {
-        runtime.SetFinalizer(self, nil)
-    }
+	C.clientnetwork_conn_free(self.inner)
+	if self.autoFree {
+		runtime.SetFinalizer(self, nil)
+	}
 }
 
 // Send a message to the given client.
 func (self ClientNetwork) SendMsg(msg Msg, addr NetAddr) bool {
-    return bool(C.clientnetwork_send_msg(self.inner, msg.inner, addr.inner))
+	return bool(C.clientnetwork_send_msg(self.inner, msg.inner, addr.inner))
 }
 
 // Send a message to the given client, using a worker thread to seralize and put
@@ -575,5 +588,5 @@ func (self ClientNetwork) SendMsg(msg Msg, addr NetAddr) bool {
 // moved and sent. Thus, no methods of msg involving the payload should be
 // called afterwards.
 func (self ClientNetwork) SendMsgDeferredByMove(msg Msg, addr NetAddr) int32 {
-    return int32(C.clientnetwork_send_msg_deferred_by_move(self.inner, msg.inner, addr.inner))
+	return int32(C.clientnetwork_send_msg_deferred_by_move(self.inner, msg.inner, addr.inner))
 }
