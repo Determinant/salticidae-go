@@ -1,7 +1,5 @@
 package salticidae
 
-// #cgo CFLAGS: -I${SRCDIR}/salticidae/include/
-// #cgo LDFLAGS: ${SRCDIR}/salticidae/libsalticidae.so -Wl,-rpath=${SRCDIR}/salticidae/
 // #include "salticidae/util.h"
 import "C"
 import "unsafe"

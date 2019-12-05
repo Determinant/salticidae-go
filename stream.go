@@ -2,6 +2,7 @@ package salticidae
 
 // #include <stdlib.h>
 // #include "salticidae/stream.h"
+// #include "salticidae/endian.h"
 // uint16_t _salti_htole16(uint16_t x) { return htole16(x); }
 // uint32_t _salti_htole32(uint32_t x) { return htole32(x); }
 // uint64_t _salti_htole64(uint64_t x) { return htole64(x); }

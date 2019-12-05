@@ -1,3 +1,9 @@
+# NOTE: this Makefile only serves the purpose as an example (works on my
+# Linux). Your Go project uses salticidae-go should setup CGO environment
+# variables properly to have a successful build.
+#
+# TODO: improve this Makefile
+
 .PHONY: all clean
 
 all: build/test_msgnet build/test_p2p_stress build/test_msgnet_tls build/bench_network
