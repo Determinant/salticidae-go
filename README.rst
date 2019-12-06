@@ -8,7 +8,9 @@ Build
 
 ::
 
-    go get github.com/Determinant/salticidae-go
-    cd $GOPATH/src/github.com/Determinant/salticidae-go/
-    # make sure you already had salticidae dependecies installed (openssl and libuv)
+    # Add the following line in your build script to use salticidae-go in your project, before any `go get`/`go build`:
+    source /dev/stdin <<<"$(curl -sS https://raw.githubusercontent.com/Determinant/salticidae-go/master/setup.sh)"
+
+    # Try out the examples right in this repo:
+    # git clone the repo and cd
     make

@@ -1,4 +1,4 @@
-#!/bin/bash -xe
+#!/bin/bash -e
 tmpdir=$(mktemp -d -t salticidae-go-XXXXXXXX)
 cd "$tmpdir"
 curl -s https://raw.githubusercontent.com/Determinant/salticidae-go/master/scripts/build.sh -o ./build.sh
