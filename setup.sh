@@ -7,3 +7,4 @@ chmod +x ./build.sh
 source ./env.sh
 ./build.sh "$SALTICIDAE_GO_PATH"
 rm -rf "$tmpdir"
+unset tmpdir
