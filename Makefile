@@ -1,6 +1,10 @@
-.PHONY: all clean
+.PHONY: all clean cdep examples
 
-all: build/test_msgnet build/test_p2p_stress build/test_msgnet_tls build/bench_network
+all: cdep examples
+
+examples: build/test_msgnet build/test_p2p_stress build/test_msgnet_tls build/bench_network
+
+cdep: build/libsalticidae.a
 
 build/libsalticidae.a: build
 	scripts/build.sh

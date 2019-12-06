@@ -1,8 +1,9 @@
 export GOPATH="$(go env GOPATH)"
 export SALTICIDAE_ORG="Determinant"
+export SALTICIDAE_GO_PATH="$GOPATH/src/github.com/$SALTICIDAE_ORG/salticidae-go"
 
 if [[ "$OSTYPE" == "linux-gnu" ]]; then
-    export SALTICIDAE_PATH="$GOPATH/src/github.com/$SALTICIDAE_ORG/salticidae-go/salticidae"
+    export SALTICIDAE_PATH="$SALTICIDAE_GO_PATH/salticidae"
     export CGO_CFLAGS="-I$SALTICIDAE_PATH/build/include/"
     export CGO_LDFLAGS="-L$SALTICIDAE_PATH/build/lib/ -lsalticidae -luv -lssl -lcrypto -lstdc++"
 elif [[ "$OSTYPE" == "darwin"* ]]; then
