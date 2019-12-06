@@ -1,35 +1,22 @@
-# NOTE: this Makefile only serves the purpose as an example (works on my
-# Linux). Your Go project uses salticidae-go should setup CGO environment
-# variables properly to have a successful build.
-#
-# TODO: improve this Makefile
-
 .PHONY: all clean
 
 all: build/test_msgnet build/test_p2p_stress build/test_msgnet_tls build/bench_network
 
-
-salticidae/libsalticidae.so:
-	cd salticidae/; cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED=ON  -DSALTICIDAE_DEBUG_LOG=OFF -DSALTICIDAE_CBINDINGS=ON -DBUILD_TEST=OFF ./
-	make -C salticidae/ -j4
+build/libsalticidae.a: build
+	scripts/build.sh
 
 build:
 	mkdir -p build
 
-build/test_msgnet: salticidae/libsalticidae.so test_msgnet/main.go
-	make -C salticidae/
-	go build -o $@ github.com/Determinant/salticidae-go/test_msgnet
-build/test_msgnet_tls: salticidae/libsalticidae.so test_msgnet_tls/main.go
-	make -C salticidae/
-	go build -o $@ github.com/Determinant/salticidae-go/test_msgnet_tls
-build/test_p2p_stress: salticidae/libsalticidae.so test_p2p_stress/main.go
-	make -C salticidae/
-	go build -o $@ github.com/Determinant/salticidae-go/test_p2p_stress
-build/bench_network: salticidae/libsalticidae.so bench_network/main.go
-	make -C salticidae/
-	go build -o $@ github.com/Determinant/salticidae-go/bench_network
+build/test_msgnet: build/libsalticidae.a test_msgnet/main.go
+	source scripts/env.sh && go build -o $@ github.com/Determinant/salticidae-go/test_msgnet
+build/test_msgnet_tls: build/libsalticidae.a test_msgnet_tls/main.go
+	source scripts/env.sh && go build -o $@ github.com/Determinant/salticidae-go/test_msgnet_tls
+build/test_p2p_stress: build/libsalticidae.a test_p2p_stress/main.go
+	source scripts/env.sh && go build -o $@ github.com/Determinant/salticidae-go/test_p2p_stress
+build/bench_network: build/libsalticidae.a bench_network/main.go
+	source scripts/env.sh && go build -o $@ github.com/Determinant/salticidae-go/bench_network
 
 clean:
 	rm -rf build/
-	cd salticidae/; make clean
-	rm salticidae/CMakeCache.txt
+	scripts/clean.sh
