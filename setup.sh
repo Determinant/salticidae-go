@@ -6,5 +6,6 @@ curl -s https://raw.githubusercontent.com/Determinant/salticidae-go/master/scrip
 chmod +x ./build.sh
 source ./env.sh
 ./build.sh "$SALTICIDAE_GO_PATH"
+cd -
 rm -rf "$tmpdir"
 unset tmpdir
