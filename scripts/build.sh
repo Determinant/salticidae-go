@@ -15,7 +15,7 @@ if [[ "$OSTYPE" == "linux-gnu" ]]; then
     make install
     cd -
     rm -f "$prefix/libsalticidae.a"
-    ln -sv "$SALTICIDAE_PATH/libsalticidae.a" "$prefix/libsalticidae.a"
+    ln -sv "$SALTICIDAE_PATH/build/lib/libsalticidae.a" "$prefix/libsalticidae.a"
 elif [[ "$OSTYPE" == "darwin"* ]]; then
     brew install Determinant/salticidae/salticidae
 else
