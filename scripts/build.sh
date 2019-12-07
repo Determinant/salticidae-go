@@ -1,6 +1,6 @@
 #!/bin/bash -e
 
-prefix="${1:-$(pwd)}/build"
+PREFIX="${PREFIX:-$(pwd)/build}"
 SRC_DIR="$(dirname "${BASH_SOURCE[0]}")"
 
 source "${SRC_DIR}/env.sh"
@@ -14,8 +14,9 @@ if [[ "$OSTYPE" == "linux-gnu" ]]; then
     make -j4
     make install
     cd -
-    rm -f "$prefix/libsalticidae.a"
-    ln -sv "$SALTICIDAE_PATH/build/lib/libsalticidae.a" "$prefix/libsalticidae.a"
+    mkdir -p "$PREFIX"
+    rm -f "$PREFIX/libsalticidae.a"
+    ln -sv "$SALTICIDAE_PATH/build/lib/libsalticidae.a" "$PREFIX/libsalticidae.a"
 elif [[ "$OSTYPE" == "darwin"* ]]; then
     brew install Determinant/salticidae/salticidae
 else

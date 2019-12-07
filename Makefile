@@ -6,12 +6,8 @@ examples: build/test_msgnet build/test_p2p_stress build/test_msgnet_tls build/be
 
 cdep: build/libsalticidae.a
 
-build/libsalticidae.a: build
+build/libsalticidae.a:
 	scripts/build.sh
-
-build:
-	mkdir -p build
-
 build/test_msgnet: build/libsalticidae.a test_msgnet/main.go
 	source scripts/env.sh && go build -o $@ github.com/Determinant/salticidae-go/test_msgnet
 build/test_msgnet_tls: build/libsalticidae.a test_msgnet_tls/main.go
