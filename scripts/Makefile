@@ -8,13 +8,13 @@ build:
 	mkdir -p build
 
 build/test_msgnet: build/lib/libsalticidae.a test_msgnet/main.go
-	go build -o $@ github.com/Determinant/salticidae-go/test_msgnet
+	go build -o $@ github.com/ava-labs/salticidae-go/test_msgnet
 build/test_msgnet_tls: build/lib/libsalticidae.a test_msgnet_tls/main.go
-	go build -o $@ github.com/Determinant/salticidae-go/test_msgnet_tls
+	go build -o $@ github.com/ava-labs/salticidae-go/test_msgnet_tls
 build/test_p2p_stress: build/lib/libsalticidae.a test_p2p_stress/main.go
-	go build -o $@ github.com/Determinant/salticidae-go/test_p2p_stress
+	go build -o $@ github.com/ava-labs/salticidae-go/test_p2p_stress
 build/bench_network: build/lib/libsalticidae.a bench_network/main.go
-	go build -o $@ github.com/Determinant/salticidae-go/bench_network
+	go build -o $@ github.com/ava-labs/salticidae-go/bench_network
 
 clean:
 	rm -rf build/

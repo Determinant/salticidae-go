@@ -18,7 +18,7 @@ if [[ "$OSTYPE" == "linux-gnu" ]]; then
     rm -f "$PREFIX/libsalticidae.a"
     ln -sv "$SALTICIDAE_PATH/build/lib/libsalticidae.a" "$PREFIX/libsalticidae.a"
 elif [[ "$OSTYPE" == "darwin"* ]]; then
-    brew install Determinant/salticidae/salticidae
+    brew install ava-labs/salticidae/salticidae
 else
     echo "Your system is not supported yet."
     exit 1

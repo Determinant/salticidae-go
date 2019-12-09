@@ -15,7 +15,7 @@ import (
     "os"
     "fmt"
     "unsafe"
-    "github.com/Determinant/salticidae-go"
+    "github.com/ava-labs/salticidae-go"
 )
 
 const (
