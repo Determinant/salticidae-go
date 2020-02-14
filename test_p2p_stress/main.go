@@ -26,13 +26,12 @@ import "C"
 
 import (
 	"fmt"
+	"github.com/ava-labs/salticidae-go"
 	"math/rand"
 	"os"
 	"strconv"
 	"sync"
 	"unsafe"
-
-	"github.com/ava-labs/salticidae-go"
 )
 
 const (
