@@ -117,6 +117,17 @@ func NewMsgNetworkConfig() MsgNetworkConfig {
 
 func (self MsgNetworkConfig) free() { C.msgnetwork_config_free(self.inner) }
 
+// Set the maximum message length (NOTE: by default it is 1 KBytes)
+func (self MsgNetworkConfig) MaxMsgSize(size int) {
+	C.msgnetwork_config_max_msg_size(self.inner, C.size_t(size))
+}
+
+// Set the maximum message queue size (the queue for buffering received
+// messages to be processed by message handlers).
+func (self MsgNetworkConfig) MaxMsgQueueSize(size int) {
+	C.msgnetwork_config_max_msg_queue_size(self.inner, C.size_t(size))
+}
+
 // Set the number of consecutive read attempts in the message delivery queue.
 // Usually the default value is good enough. This is used to make the tradeoff
 // between the event loop fairness and the amortization of syscall cost.
@@ -144,9 +155,14 @@ func (self MsgNetworkConfig) NWorker(nworker int) {
 	C.msgnetwork_config_nworker(self.inner, C.size_t(nworker))
 }
 
-// Set the capacity of the send buffer.
-func (self MsgNetworkConfig) QueueCapacity(capacity int) {
-	C.msgnetwork_config_queue_capacity(self.inner, C.size_t(capacity))
+// Set the maximum send buffer size.
+func (self MsgNetworkConfig) MaxSendBuffSize(size int) {
+	C.msgnetwork_config_max_send_buff_size(self.inner, C.size_t(size))
+}
+
+// Set the maximum recv buffer size.
+func (self MsgNetworkConfig) MaxRecvBuffSize(size int) {
+	C.msgnetwork_config_max_recv_buff_size(self.inner, C.size_t(size))
 }
 
 // Specify whether to use SSL/TLS. When this flag is enabled, MsgNetwork uses

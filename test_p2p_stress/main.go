@@ -284,6 +284,7 @@ func main() {
 	}
 	netconfig := salticidae.NewPeerNetworkConfig()
 	nc := netconfig.AsMsgNetworkConfig()
+	nc.MaxMsgSize(65536)
 	nc.SegBuffSize(segBuffSize)
 	nc.NWorker(2)
 	netconfig.ConnTimeout(5)
