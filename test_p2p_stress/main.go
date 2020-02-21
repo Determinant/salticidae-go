@@ -144,7 +144,7 @@ func sendRand(size int, app *AppContext, conn salticidae.MsgNetworkConn, tc *Tes
 
 var apps []AppContext
 var threads sync.WaitGroup
-var segBuffSize = 4096
+var recvChunkSize = 4096
 var ec salticidae.EventContext
 var ids []*C.int
 
@@ -202,7 +202,7 @@ func onReceiveAck(_msg *C.struct_msg_t, _conn *C.struct_msgnetwork_conn_t, userd
 		panic("corrupted I/O!")
 	}
 
-	if tc.state == segBuffSize*2 {
+	if tc.state == recvChunkSize*2 {
 		sendRand(tc.state, app, conn, tc)
 		tc.state = -1
 		ctx := C.timeout_callback_context_new()
@@ -220,7 +220,7 @@ func onReceiveAck(_msg *C.struct_msg_t, _conn *C.struct_msgnetwork_conn_t, userd
 		tc.timer.Add(t)
 		fmt.Printf("rand-bomboard phase, ending in %.2f secs\n", t)
 	} else if tc.state == -1 {
-		sendRand(rand.Int()%(segBuffSize*10), app, conn, tc)
+		sendRand(rand.Int()%(recvChunkSize*10), app, conn, tc)
 	} else {
 		tc.state++
 		sendRand(tc.state, app, conn, tc)
@@ -285,7 +285,7 @@ func main() {
 	netconfig := salticidae.NewPeerNetworkConfig()
 	nc := netconfig.AsMsgNetworkConfig()
 	nc.MaxMsgSize(65536)
-	nc.SegBuffSize(segBuffSize)
+	nc.RecvChunkSize(recvChunkSize)
 	nc.NWorker(2)
 	netconfig.ConnTimeout(5)
 	netconfig.PingPeriod(2)
@@ -323,7 +323,10 @@ func main() {
 			checkError(&err)
 			for _, addr := range addrs {
 				if !addr.IsEq(a.addr) {
-					a.net.AddPeer(addr)
+					peer := salticidae.NewPeerIdFromNetAddr(addr, true)
+					a.net.AddPeer(peer)
+					a.net.SetPeerAddr(peer, addr)
+					a.net.ConnPeer(peer, -1, 2)
 				}
 			}
 			a.ec.Dispatch()

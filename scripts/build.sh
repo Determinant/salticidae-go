@@ -6,10 +6,10 @@ SRC_DIR="$(dirname "${BASH_SOURCE[0]}")"
 source "${SRC_DIR}/env.sh"
 
 if [[ "$OSTYPE" == "linux-gnu" ]]; then
-    go get -u -d "github.com/$SALTICIDAE_ORG/salticidae-go"
+    #go get -u -d "github.com/$SALTICIDAE_ORG/salticidae-go"
     cd "$SALTICIDAE_GO_PATH"
-    git checkout "$SALTICIDAE_GO_VER"
-    git submodule update --init --recursive
+    #git checkout "$SALTICIDAE_GO_VER"
+    #git submodule update --init --recursive
     cd "$SALTICIDAE_PATH"
     cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="$SALTICIDAE_PATH/build" .
     make -j4
