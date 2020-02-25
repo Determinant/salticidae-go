@@ -561,6 +561,13 @@ func (self PeerNetworkConn) GetPeerAddr(autoFree bool) NetAddr {
 	return res
 }
 
+// Get the id of the remote peer (no Copy() is needed).
+func (self PeerNetworkConn) GetPeerId(autoFree bool) PeerId {
+	res := PeerIdFromC(C.peernetwork_conn_get_peer_id(self.inner))
+	peerIdSetFinalizer(res, autoFree)
+	return res
+}
+
 func (self PeerNetworkConn) Free() {
 	C.peernetwork_conn_free(self.inner)
 	if self.autoFree {
