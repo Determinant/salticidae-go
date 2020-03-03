@@ -323,7 +323,7 @@ func main() {
 			checkError(&err)
 			for _, addr := range addrs {
 				if !addr.IsEq(a.addr) {
-					peer := salticidae.NewPeerIdFromNetAddr(addr, true)
+					peer := salticidae.NewPeerIDFromNetAddr(addr, true)
 					a.net.AddPeer(peer)
 					a.net.SetPeerAddr(peer, addr)
 					a.net.ConnPeer(peer, -1, 2)

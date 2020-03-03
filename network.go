@@ -320,14 +320,14 @@ func peerNetworkConnSetFinalizer(res PeerNetworkConn, autoFree bool) {
 }
 
 var (
-	ADDR_BASED = PeerNetworkIdMode(C.ID_MODE_ADDR_BASED)
-	CERT_BASED = PeerNetworkIdMode(C.ID_MODE_CERT_BASED)
+	ADDR_BASED = PeerNetworkIDMode(C.ID_MODE_ADDR_BASED)
+	CERT_BASED = PeerNetworkIDMode(C.ID_MODE_CERT_BASED)
 )
 
 // The identity mode.  ID_MODE_IP_BASED: a remote peer is identified by the IP
 // only. ID_MODE_IP_PORT_BASED: a remote peer is identified by IP + port
 // number.
-type PeerNetworkIdMode = C.peernetwork_id_mode_t
+type PeerNetworkIDMode = C.peernetwork_id_mode_t
 
 // The C pointer type for a PeerNetworkConfig handle.
 type CPeerNetworkConfig = *C.peernetwork_config_t
@@ -361,7 +361,7 @@ func (self PeerNetworkConfig) ConnTimeout(t_sec float64) {
 }
 
 // Set the identity mode.
-func (self PeerNetworkConfig) IdMode(mode PeerNetworkIdMode) {
+func (self PeerNetworkConfig) IDMode(mode PeerNetworkIDMode) {
 	C.peernetwork_config_id_mode(self.inner, mode)
 }
 
@@ -371,74 +371,90 @@ func (self PeerNetworkConfig) AsMsgNetworkConfig() MsgNetworkConfig {
 	return MsgNetworkConfigFromC(C.peernetwork_config_as_msgnetwork_config(self.inner))
 }
 
-// The C pointer type for a PeerId object
-type CPeerId = *C.peerid_t
-type peerId struct {
-	inner    CPeerId
+// The C pointer type for a PeerID object
+type CPeerID = *C.peerid_t
+type peerID struct {
+	inner    CPeerID
 	autoFree bool
 }
 
 // Peer identity object
-type PeerId = *peerId
+type PeerID = *peerID
 
 // Convert an existing C pointer into a go object.
-func PeerIdFromC(ptr CPeerId) PeerId {
-	return &peerId{inner: ptr}
+func PeerIDFromC(ptr CPeerID) PeerID {
+	return &peerID{inner: ptr}
 }
 
-func peerIdSetFinalizer(res PeerId, autoFree bool) {
+func peerIDSetFinalizer(res PeerID, autoFree bool) {
 	res.autoFree = autoFree
 	if res != nil && autoFree {
-		runtime.SetFinalizer(res, func(self PeerId) { self.Free() })
+		runtime.SetFinalizer(res, func(self PeerID) { self.Free() })
 	}
 }
 
-// Create PeerId from a NetAddr
-func NewPeerIdFromNetAddr(addr NetAddr, autoFree bool) (res PeerId) {
-	res = &peerId{inner: C.peerid_new_from_netaddr(addr.inner)}
-	peerIdSetFinalizer(res, autoFree)
+// Create PeerID from a NetAddr
+func NewPeerIDFromNetAddr(addr NetAddr, autoFree bool) (res PeerID) {
+	res = &peerID{inner: C.peerid_new_from_netaddr(addr.inner)}
+	peerIDSetFinalizer(res, autoFree)
 	return
 }
 
-// Create PeerId from a X509 certificate
-func NewPeerIdFromX509(cert X509, autoFree bool) (res PeerId) {
-	res = &peerId{inner: C.peerid_new_from_x509(cert.inner)}
-	peerIdSetFinalizer(res, autoFree)
+// Create PeerID from a X509 certificate
+func NewPeerIDFromX509(cert X509, autoFree bool) (res PeerID) {
+	res = &peerID{inner: C.peerid_new_from_x509(cert.inner)}
+	peerIDSetFinalizer(res, autoFree)
 	return
 }
 
-func (self PeerId) Free() {
+func NewPeerIDMovedFromUInt256(movedRawID UInt256, autoFree bool) (res PeerID) {
+	res = &peerID{inner: C.peerid_new_moved_from_uint256(movedRawID.inner)}
+	peerIDSetFinalizer(res, autoFree)
+	return
+}
+
+func NewPeerIDCopiedFromUInt256(rawID UInt256, autoFree bool) (res PeerID) {
+	res = &peerID{inner: C.peerid_new_copied_from_uint256(rawID.inner)}
+	peerIDSetFinalizer(res, autoFree)
+	return
+}
+
+func (self PeerID) AsUInt256() (res UInt256) {
+	return UInt256FromC(C.peerid_as_uint256(self.inner))
+}
+
+func (self PeerID) Free() {
 	C.peerid_free(self.inner)
 	if self.autoFree {
 		runtime.SetFinalizer(self, nil)
 	}
 }
 
-// The C pointer type for a PeerIdArray object
-type CPeerIdArray = *C.peerid_array_t
-type peerIdArray struct {
-	inner    CPeerIdArray
+// The C pointer type for a PeerIDArray object
+type CPeerIDArray = *C.peerid_array_t
+type peerIDArray struct {
+	inner    CPeerIDArray
 	autoFree bool
 }
 
 // An array of peer ids.
-type PeerIdArray = *peerIdArray
+type PeerIDArray = *peerIDArray
 
-func PeerIdArrayFromC(ptr CPeerIdArray) PeerIdArray {
-	return &peerIdArray{inner: ptr}
+func PeerIDArrayFromC(ptr CPeerIDArray) PeerIDArray {
+	return &peerIDArray{inner: ptr}
 }
 
-func peerIdArraySetFinalizer(res PeerIdArray, autoFree bool) {
+func peerIDArraySetFinalizer(res PeerIDArray, autoFree bool) {
 	res.autoFree = autoFree
 	if res != nil && autoFree {
-		runtime.SetFinalizer(res, func(self PeerIdArray) { self.Free() })
+		runtime.SetFinalizer(res, func(self PeerIDArray) { self.Free() })
 	}
 }
 
-// Convert a Go slice of peer ids to PeerIdArray.
-func NewPeerIdArrayFromPeers(arr []PeerId, autoFree bool) (res PeerIdArray) {
+// Convert a Go slice of peer ids to PeerIDArray.
+func NewPeerIDArrayFromPeers(arr []PeerID, autoFree bool) (res PeerIDArray) {
 	size := len(arr)
-	_arr := make([]CPeerId, size)
+	_arr := make([]CPeerID, size)
 	for i, v := range arr {
 		_arr[i] = v.inner
 	}
@@ -446,16 +462,16 @@ func NewPeerIdArrayFromPeers(arr []PeerId, autoFree bool) (res PeerIdArray) {
 		// FIXME: here we assume struct of a single pointer has the same memory
 		// footprint the pointer
 		base := (**C.peerid_t)(rawptr_t(&_arr[0]))
-		res = PeerIdArrayFromC(C.peerid_array_new_from_peers(base, C.size_t(size)))
+		res = PeerIDArrayFromC(C.peerid_array_new_from_peers(base, C.size_t(size)))
 	} else {
-		res = PeerIdArrayFromC(C.peerid_array_new())
+		res = PeerIDArrayFromC(C.peerid_array_new())
 	}
 	runtime.KeepAlive(_arr)
-	peerIdArraySetFinalizer(res, autoFree)
+	peerIDArraySetFinalizer(res, autoFree)
 	return
 }
 
-func (self PeerIdArray) Free() {
+func (self PeerIDArray) Free() {
 	C.peerid_array_free(self.inner)
 	if self.autoFree {
 		runtime.SetFinalizer(self, nil)
@@ -478,25 +494,25 @@ func (self PeerNetwork) free() { C.peernetwork_free(self.inner) }
 // bi-direction connections to all known peers in the list (through
 // reconnection and connection deduplication). This is an async call and the
 // call id is returned as the reference for error handling.
-func (self PeerNetwork) AddPeer(peer PeerId) int32 {
+func (self PeerNetwork) AddPeer(peer PeerID) int32 {
 	return int32(C.peernetwork_add_peer(self.inner, peer.inner))
 }
 
 // Remove a peer from the list of known peers. The P2P network will teardown
 // the existing bi-direction connection and the PeerHandler callback will not
 // be called. This is an async call.
-func (self PeerNetwork) DelPeer(peer PeerId) int32 {
+func (self PeerNetwork) DelPeer(peer PeerID) int32 {
 	return int32(C.peernetwork_del_peer(self.inner, peer.inner))
 }
 
 // Test whether a peer is already in the list.
-func (self PeerNetwork) HasPeer(peer PeerId) bool {
+func (self PeerNetwork) HasPeer(peer PeerID) bool {
 	return bool(C.peernetwork_has_peer(self.inner, peer.inner))
 }
 
 // Get the connection of the known peer. The connection handle is returned. The
 // returned connection handle could be kept in your program.
-func (self PeerNetwork) GetPeerConn(peer PeerId, autoFree bool, err *Error) PeerNetworkConn {
+func (self PeerNetwork) GetPeerConn(peer PeerID, autoFree bool, err *Error) PeerNetworkConn {
 	res := PeerNetworkConnFromC(C.peernetwork_get_peer_conn(self.inner, peer.inner, err))
 	peerNetworkConnSetFinalizer(res, autoFree)
 	return res
@@ -506,7 +522,7 @@ func (self PeerNetwork) GetPeerConn(peer PeerId, autoFree bool, err *Error) Peer
 // address for a peer is by default empty and a p2p connection can only be
 // established from the other side in this case (which is common for the peers
 // behind some firewall/router). This is an async call.
-func (self PeerNetwork) SetPeerAddr(peer PeerId, addr NetAddr) int32 {
+func (self PeerNetwork) SetPeerAddr(peer PeerID, addr NetAddr) int32 {
 	return int32(C.peernetwork_set_peer_addr(self.inner, peer.inner, addr.inner))
 }
 
@@ -516,7 +532,7 @@ func (self PeerNetwork) SetPeerAddr(peer PeerId, addr NetAddr) int32 {
 // indefinitely. retryDelay specifies the minimum delay (in seconds) between
 // two attempts. When ntry != 0, once peer is connected, the retry state is
 // reset with ntry.
-func (self PeerNetwork) ConnPeer(peer PeerId, ntry int32, retryDelay float64) int32 {
+func (self PeerNetwork) ConnPeer(peer PeerID, ntry int32, retryDelay float64) int32 {
 	return int32(C.peernetwork_conn_peer(self.inner, peer.inner, C.int(ntry), C.double(retryDelay)))
 }
 
@@ -562,9 +578,9 @@ func (self PeerNetworkConn) GetPeerAddr(autoFree bool) NetAddr {
 }
 
 // Get the id of the remote peer (no Copy() is needed).
-func (self PeerNetworkConn) GetPeerId(autoFree bool) PeerId {
-	res := PeerIdFromC(C.peernetwork_conn_get_peer_id(self.inner))
-	peerIdSetFinalizer(res, autoFree)
+func (self PeerNetworkConn) GetPeerID(autoFree bool) PeerID {
+	res := PeerIDFromC(C.peernetwork_conn_get_peer_id(self.inner))
+	peerIDSetFinalizer(res, autoFree)
 	return res
 }
 
@@ -583,7 +599,7 @@ func (self PeerNetwork) Listen(listenAddr NetAddr, err *Error) {
 }
 
 // Send a message to the given peer.
-func (self PeerNetwork) SendMsg(msg Msg, peer PeerId) bool {
+func (self PeerNetwork) SendMsg(msg Msg, peer PeerID) bool {
 	return bool(C.peernetwork_send_msg(self.inner, msg.inner, peer.inner))
 }
 
@@ -591,15 +607,15 @@ func (self PeerNetwork) SendMsg(msg Msg, peer PeerId) bool {
 // data to the send buffer. The payload contained in the given msg will be
 // moved and sent. Thus, no methods of msg involving the payload should be
 // called afterwards.
-func (self PeerNetwork) SendMsgDeferredByMove(msg Msg, peer PeerId) int32 {
+func (self PeerNetwork) SendMsgDeferredByMove(msg Msg, peer PeerID) int32 {
 	return int32(C.peernetwork_send_msg_deferred_by_move(self.inner, msg.inner, peer.inner))
 }
 
 // Send a message to the given list of peers. The payload contained in the
 // given msg will be moved and sent. Thus, no methods of msg involving the
 // payload should be called afterwards.
-func (self PeerNetwork) MulticastMsgByMove(msg Msg, peers []PeerId) (res int32) {
-	na := NewPeerIdArrayFromPeers(peers, false)
+func (self PeerNetwork) MulticastMsgByMove(msg Msg, peers []PeerID) (res int32) {
+	na := NewPeerIDArrayFromPeers(peers, false)
 	res = int32(C.peernetwork_multicast_msg_by_move(self.inner, msg.inner, na.inner))
 	na.Free()
 	return res
