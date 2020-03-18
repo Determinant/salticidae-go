@@ -13,7 +13,7 @@ import "C"
 
 import (
 	"fmt"
-	"github.com/Determinant/salticidae-go"
+	"github.com/ava-labs/salticidae-go"
 	"os"
 	"unsafe"
 )
