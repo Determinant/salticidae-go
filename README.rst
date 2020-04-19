@@ -1,7 +1,9 @@
 salticidae-go
 -------------
 
-Go bindings for Salticidae network library
+Go bindings for Salticidae_ network library
+
+.. _Salticidae: https://github.com/Determinant/salticidae
 
 Build
 -----
