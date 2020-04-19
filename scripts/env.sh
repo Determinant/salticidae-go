@@ -1,6 +1,6 @@
 export GOPATH="$(go env GOPATH)"
 export SALTICIDAE_ORG="ava-labs"
-export SALTICIDAE_GO_VER="one-way-handshake"
+export SALTICIDAE_GO_VER="v0.1.0"
 export SALTICIDAE_GO_PATH="$GOPATH/src/github.com/$SALTICIDAE_ORG/salticidae-go"
 
 if [[ "$OSTYPE" == "linux-gnu" ]]; then
