@@ -1,4 +1,8 @@
-#!/bin/bash -e
+#!/usr/bin/env bash
+
+set -o errexit
+set -o nounset
+set -o pipefail
 
 PREFIX="${PREFIX:-$(pwd)/build}"
 SRC_DIR="$(dirname "${BASH_SOURCE[0]}")"
@@ -6,8 +10,9 @@ SRC_DIR="$(dirname "${BASH_SOURCE[0]}")"
 source "${SRC_DIR}/env.sh"
 
 if [[ "$OSTYPE" == "linux-gnu" ]]; then
-    go get -u -d "github.com/$SALTICIDAE_ORG/salticidae-go"
+    go get -d "github.com/$SALTICIDAE_ORG/salticidae-go"
     cd "$SALTICIDAE_GO_PATH"
+    git fetch
     git checkout "$SALTICIDAE_GO_VER"
     git submodule update --init --recursive
     cd "$SALTICIDAE_PATH"
