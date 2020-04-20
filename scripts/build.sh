@@ -1,4 +1,8 @@
-#!/bin/bash -e
+#!/usr/bin/env bash
+
+set -o errexit
+set -o nounset
+set -o pipefail
 
 PREFIX="${PREFIX:-$(pwd)/build}"
 SRC_DIR="$(dirname "${BASH_SOURCE[0]}")"
