@@ -125,17 +125,18 @@ func addr2id(addr salticidae.NetAddr) uint64 {
 	return uint64(addr.GetIP()) | (uint64(addr.GetPort()) << 32)
 }
 
-func (self AppContext) getTC(addr_id uint64) (_tc *TestContext) {
-	if tc, ok := self.tc[addr_id]; ok {
+func (self AppContext) getTC(addrID uint64) (_tc *TestContext) {
+	if tc, ok := self.tc[addrID]; ok {
 		_tc = tc
 	} else {
 		_tc = new(TestContext)
-		self.tc[addr_id] = _tc
+		self.tc[addrID] = _tc
 	}
 	return
 }
 
 func sendRand(size int, app *AppContext, conn salticidae.MsgNetworkConn, tc *TestContext) {
+	tc.view++
 	msg, hash := msgRandSerialize(tc.view, size)
 	defer msg.Free()
 	tc.hash = hash
@@ -158,8 +159,8 @@ func onTimeout(_ *C.timerev_t, userdata unsafe.Pointer) {
 		salticidae.MsgNetworkConnFromC(
 			salticidae.CMsgNetworkConn(ctx.conn)))
 	var s string
-	for addr_id, v := range app.tc {
-		s += fmt.Sprintf(" %d(%d)", C.ntohs(C.ushort(addr_id>>32)), v.ncompleted)
+	for addrID, v := range app.tc {
+		s += fmt.Sprintf(" %d(%d)", C.ntohs(C.ushort(addrID>>32)), v.ncompleted)
 	}
 	fmt.Printf("INFO: %d completed:%s\n", C.ntohs(C.ushort(app.addr.GetPort())), s)
 }
@@ -239,7 +240,6 @@ func peerHandler(_conn *C.struct_peernetwork_conn_t, connected C.bool, userdata 
 		defer addr.Free()
 		tc := app.getTC(addr2id(addr))
 		tc.state = 1
-		tc.view++
 		sendRand(tc.state, app, conn, tc)
 	}
 }
