@@ -40,8 +40,8 @@ const (
 )
 
 func msgRandSerialize(view uint32, size int) (salticidae.Msg, salticidae.UInt256) {
-	serialized := salticidae.NewDataStream(false)
-	defer serialized.Free()
+	serialized := salticidae.NewDataStream(true)
+	//defer serialized.Free()
 	serialized.PutU32(salticidae.ToLittleEndianU32(view))
 	buffer := make([]byte, size)
 	_, err := rand.Read(buffer)
@@ -49,36 +49,36 @@ func msgRandSerialize(view uint32, size int) (salticidae.Msg, salticidae.UInt256
 		panic("rand source failed")
 	}
 	serialized.PutData(buffer)
-	ba := salticidae.NewByteArrayFromBytes(buffer, false)
-	defer ba.Free()
-	payload := salticidae.NewByteArrayMovedFromDataStream(serialized, false)
-	defer payload.Free()
-	return salticidae.NewMsgMovedFromByteArray(MSG_OPCODE_RAND, payload, false), ba.GetHash(true)
+	ba := salticidae.NewByteArrayFromBytes(buffer, true)
+	//defer ba.Free()
+	payload := salticidae.NewByteArrayMovedFromDataStream(serialized, true)
+	//defer payload.Free()
+	return salticidae.NewMsgMovedFromByteArray(MSG_OPCODE_RAND, payload, true), ba.GetHash(true)
 }
 
 func msgRandUnserialize(msg salticidae.Msg) (view uint32, hash salticidae.UInt256) {
 	payload := msg.GetPayloadByMove()
 	succ := true
 	view = salticidae.FromLittleEndianU32(payload.GetU32(&succ))
-	ba := salticidae.NewByteArrayCopiedFromDataStream(payload, false)
-	defer ba.Free()
-	hash = ba.GetHash(false)
+	ba := salticidae.NewByteArrayCopiedFromDataStream(payload, true)
+	//defer ba.Free()
+	hash = ba.GetHash(true)
 	return
 }
 
 func msgAckSerialize(view uint32, hash salticidae.UInt256) salticidae.Msg {
-	serialized := salticidae.NewDataStream(false)
-	defer serialized.Free()
+	serialized := salticidae.NewDataStream(true)
+	//defer serialized.Free()
 	serialized.PutU32(salticidae.ToLittleEndianU32(view))
 	hash.Serialize(serialized)
-	payload := salticidae.NewByteArrayMovedFromDataStream(serialized, false)
-	defer payload.Free()
-	return salticidae.NewMsgMovedFromByteArray(MSG_OPCODE_ACK, payload, false)
+	payload := salticidae.NewByteArrayMovedFromDataStream(serialized, true)
+	//defer payload.Free()
+	return salticidae.NewMsgMovedFromByteArray(MSG_OPCODE_ACK, payload, true)
 }
 
 func msgAckUnserialize(msg salticidae.Msg) (view uint32, hash salticidae.UInt256) {
 	payload := msg.GetPayloadByMove()
-	hash = salticidae.NewUInt256(false)
+	hash = salticidae.NewUInt256(true)
 	succ := true
 	view = salticidae.FromLittleEndianU32(payload.GetU32(&succ))
 	hash.Unserialize(payload)
@@ -138,7 +138,7 @@ func (self AppContext) getTC(addrID uint64) (_tc *TestContext) {
 func sendRand(size int, app *AppContext, conn salticidae.MsgNetworkConn, tc *TestContext) {
 	tc.view++
 	msg, hash := msgRandSerialize(tc.view, size)
-	defer msg.Free()
+	//defer msg.Free()
 	tc.hash = hash
 	app.net.AsMsgNetwork().SendMsg(msg, conn)
 }
@@ -171,23 +171,23 @@ func onReceiveRand(_msg *C.struct_msg_t, _conn *C.struct_msgnetwork_conn_t, _ un
 	conn := salticidae.MsgNetworkConnFromC(salticidae.CMsgNetworkConn(_conn))
 	net := conn.GetNet()
 	view, hash := msgRandUnserialize(msg)
-	defer hash.Free()
+	//defer hash.Free()
 	ack := msgAckSerialize(view, hash)
-	defer ack.Free()
+	//defer ack.Free()
 	net.SendMsg(ack, conn)
 }
 
 //export onReceiveAck
 func onReceiveAck(_msg *C.struct_msg_t, _conn *C.struct_msgnetwork_conn_t, userdata unsafe.Pointer) {
 	view, hash := msgAckUnserialize(salticidae.MsgFromC(salticidae.CMsg(_msg)))
-	defer hash.Free()
+	//defer hash.Free()
 	id := int(*(*C.int)(userdata))
 	app := &apps[id]
 	conn := salticidae.MsgNetworkConnFromC(salticidae.CMsgNetworkConn(_conn))
-	pconn := salticidae.NewPeerNetworkConnFromMsgNetworkConnUnsafe(conn, false)
-	defer pconn.Free()
-	addr := pconn.GetPeerAddr(false)
-	defer addr.Free()
+	pconn := salticidae.NewPeerNetworkConnFromMsgNetworkConnUnsafe(conn, true)
+	//defer pconn.Free()
+	addr := pconn.GetPeerAddr(true)
+	//defer addr.Free()
 	if addr.IsNull() {
 		return
 	}
@@ -232,12 +232,12 @@ func onReceiveAck(_msg *C.struct_msg_t, _conn *C.struct_msgnetwork_conn_t, userd
 func peerHandler(_conn *C.struct_peernetwork_conn_t, connected C.bool, userdata unsafe.Pointer) {
 	if connected {
 		pconn := salticidae.PeerNetworkConnFromC(salticidae.CPeerNetworkConn(_conn))
-		conn := salticidae.NewMsgNetworkConnFromPeerNetworkConn(pconn, false)
-		defer conn.Free()
+		conn := salticidae.NewMsgNetworkConnFromPeerNetworkConn(pconn, true)
+		//defer conn.Free()
 		id := int(*(*C.int)(userdata))
 		app := &apps[id]
-		addr := pconn.GetPeerAddr(false)
-		defer addr.Free()
+		addr := pconn.GetPeerAddr(true)
+		//defer addr.Free()
 		tc := app.getTC(addr2id(addr))
 		tc.state = 1
 		sendRand(tc.state, app, conn, tc)
