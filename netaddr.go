@@ -5,21 +5,23 @@ package salticidae
 import "C"
 import "runtime"
 
-// The C pointer type for a NetAddr object
+//// begin NetAddr def
+
+// CNetAddr is the C pointer type for a NetAddr object
 type CNetAddr = *C.netaddr_t
 type netAddr struct {
 	inner    CNetAddr
 	autoFree bool
 }
 
-// Network address object.
+// NetAddr is a network address object.
 type NetAddr = *netAddr
 
-// Convert an existing C pointer into a go object. Notice that when the go
-// object does *not* own the resource of the C pointer, so it is only valid to
-// the extent in which the given C pointer is valid. The C memory will not be
-// deallocated when the go object is finalized by GC. This applies to all other
-// "FromC" functions.
+// NetAddrFromC converts an existing C pointer into a go object. Notice that
+// when the go object does *not* own the resource of the C pointer, so it is
+// only valid to the extent in which the given C pointer is valid. The C memory
+// will not be deallocated when the go object is finalized by GC. This applies
+// to all other "FromC" functions.
 func NetAddrFromC(ptr CNetAddr) NetAddr {
 	return &netAddr{inner: ptr}
 }
@@ -31,51 +33,26 @@ func netAddrSetFinalizer(res NetAddr, autoFree bool) {
 	}
 }
 
-// Create NetAddr from a TCP socket format string (e.g. 127.0.0.1:8888).
-func NewNetAddrFromIPPortString(addr string, autoFree bool, err *Error) (res NetAddr) {
-	c_str := C.CString(addr)
-	res = &netAddr{inner: C.netaddr_new_from_sipport(c_str, err)}
-	C.free(rawptr_t(c_str))
-	netAddrSetFinalizer(res, autoFree)
-	return
-}
-
-func (self NetAddr) Free() {
-	C.netaddr_free(self.inner)
-	if self.autoFree {
-		runtime.SetFinalizer(self, nil)
+// Free the underlying C pointer manually.
+func (na NetAddr) Free() {
+	C.netaddr_free(na.inner)
+	if na.autoFree {
+		runtime.SetFinalizer(na, nil)
 	}
 }
 
-// Check if two addresses are the same.
-func (self NetAddr) IsEq(other NetAddr) bool { return bool(C.netaddr_is_eq(self.inner, other.inner)) }
+//// end NetAddr def
 
-func (self NetAddr) IsNull() bool { return bool(C.netaddr_is_null(self.inner)) }
+//// begin NetAddrArray def
 
-// Get the 32-bit IP representation.
-func (self NetAddr) GetIP() uint32 { return uint32(C.netaddr_get_ip(self.inner)) }
-
-// Get the 16-bit port number (in UNIX network byte order, so need to apply
-// ntohs(), for example, to convert the returned integer to the local endianness).
-func (self NetAddr) GetPort() uint16 { return uint16(C.netaddr_get_port(self.inner)) }
-
-// Make a copy of the object. This is required if you want to keep the NetAddr
-// returned (or passed as a callback parameter) by other salticidae methods
-// (such like MsgNetwork/PeerNetwork), unless those method return a moved object.
-func (self NetAddr) Copy(autoFree bool) NetAddr {
-	res := &netAddr{inner: C.netaddr_copy(self.inner)}
-	netAddrSetFinalizer(res, autoFree)
-	return res
-}
-
-// The C pointer type for a NetAddrArray object.
+// CNetAddrArray is the C pointer type for a NetAddrArray object.
 type CNetAddrArray = *C.netaddr_array_t
 type netAddrArray struct {
 	inner    CNetAddrArray
 	autoFree bool
 }
 
-// An array of network address.
+// NetAddrArray is an array of network address.
 type NetAddrArray = *netAddrArray
 
 func NetAddrArrayFromC(ptr CNetAddrArray) NetAddrArray {
@@ -89,7 +66,64 @@ func netAddrArraySetFinalizer(res NetAddrArray, autoFree bool) {
 	}
 }
 
-// Convert a Go slice of net addresses to NetAddrArray.
+// Free the underlying C pointer manually.
+func (naa NetAddrArray) Free() {
+	C.netaddr_array_free(naa.inner)
+	if naa.autoFree {
+		runtime.SetFinalizer(naa, nil)
+	}
+}
+
+//// end NetAddrArray def
+
+//// begin NetAddr methods
+
+// NewNetAddrFromIPPortString creates NetAddr from a TCP socket format string
+// (e.g. 127.0.0.1:8888).
+func NewNetAddrFromIPPortString(addr string, autoFree bool, err *Error) (res NetAddr) {
+	cStr := C.CString(addr)
+	res = NetAddrFromC(C.netaddr_new_from_sipport(cStr, err))
+	C.free(RawPtr(cStr))
+	netAddrSetFinalizer(res, autoFree)
+	return
+}
+
+// IsEq checks if two addresses are the same.
+func (na NetAddr) IsEq(other NetAddr) bool {
+	return bool(C.netaddr_is_eq(na.inner, other.inner))
+}
+
+// IsNull checks the address is empty.
+func (na NetAddr) IsNull() bool {
+	return bool(C.netaddr_is_null(na.inner))
+}
+
+// GetIP gets the 32-bit IP representation.
+func (na NetAddr) GetIP() uint32 {
+	return uint32(C.netaddr_get_ip(na.inner))
+}
+
+// GetPort gets the 16-bit port number (in UNIX network byte order, so need to
+// apply ntohs(), for example, to convert the returned integer to the local
+// endianness).
+func (na NetAddr) GetPort() uint16 {
+	return uint16(C.netaddr_get_port(na.inner))
+}
+
+// Copy the object. This is required if you want to keep the NetAddr returned
+// (or passed as a callback parameter) by other salticidae methods (such like
+// MsgNetwork/PeerNetwork), unless those method return a moved object.
+func (na NetAddr) Copy(autoFree bool) NetAddr {
+	res := NetAddrFromC(C.netaddr_copy(na.inner))
+	netAddrSetFinalizer(res, autoFree)
+	return res
+}
+
+//// end NetAddr methods
+
+//// begin NetAddrArray methods
+
+// NewNetAddrArrayFromAddrs converts a Go slice of net addresses to NetAddrArray.
 func NewNetAddrArrayFromAddrs(arr []NetAddr, autoFree bool) (res NetAddrArray) {
 	size := len(arr)
 	_arr := make([]CNetAddr, size)
@@ -99,7 +133,7 @@ func NewNetAddrArrayFromAddrs(arr []NetAddr, autoFree bool) (res NetAddrArray) {
 	if size > 0 {
 		// FIXME: here we assume struct of a single pointer has the same memory
 		// footprint the pointer
-		base := (**C.netaddr_t)(rawptr_t(&_arr[0]))
+		base := (**C.netaddr_t)(RawPtr(&_arr[0]))
 		res = NetAddrArrayFromC(C.netaddr_array_new_from_addrs(base, C.size_t(size)))
 	} else {
 		res = NetAddrArrayFromC(C.netaddr_array_new())
@@ -109,9 +143,4 @@ func NewNetAddrArrayFromAddrs(arr []NetAddr, autoFree bool) (res NetAddrArray) {
 	return
 }
 
-func (self NetAddrArray) Free() {
-	C.netaddr_array_free(self.inner)
-	if self.autoFree {
-		runtime.SetFinalizer(self, nil)
-	}
-}
+//// end NetAddrArray methods

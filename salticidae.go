@@ -4,7 +4,7 @@ package salticidae
 import "C"
 import "unsafe"
 
-type rawptr_t = unsafe.Pointer
+type RawPtr = unsafe.Pointer
 type Opcode = uint8
 type Error = C.struct_SalticidaeCError
 

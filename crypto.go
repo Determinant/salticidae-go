@@ -26,9 +26,9 @@ func NewX509FromPemFile(fname string, passwd *string, err *Error) X509 {
 	if res != nil {
 		runtime.SetFinalizer(res, func(self X509) { self.free() })
 	}
-	C.free(rawptr_t(fname_c_str))
+	C.free(RawPtr(fname_c_str))
 	if passwd_c_str != nil {
-		C.free(rawptr_t(passwd_c_str))
+		C.free(RawPtr(passwd_c_str))
 	}
 	return res
 }
@@ -71,9 +71,9 @@ func NewPrivKeyFromPemFile(fname string, passwd *string, err *Error) PKey {
 	if res != nil {
 		runtime.SetFinalizer(res, func(self PKey) { self.free() })
 	}
-	C.free(rawptr_t(fname_c_str))
+	C.free(RawPtr(fname_c_str))
 	if passwd_c_str != nil {
-		C.free(rawptr_t(passwd_c_str))
+		C.free(RawPtr(passwd_c_str))
 	}
 	return res
 }
