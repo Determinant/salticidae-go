@@ -146,7 +146,7 @@ func sendRand(size int, app *AppContext, conn salticidae.MsgNetworkConn, tc *Tes
 var apps []AppContext
 var threads sync.WaitGroup
 var recvChunkSize = 4096
-var ec salticidae.EventContext
+var gec salticidae.EventContext
 var ids []*C.int
 
 //export onTimeout
@@ -270,11 +270,11 @@ func onTerm(_ C.int, _ unsafe.Pointer) {
 			unsafe.Pointer(ids[i]))
 	}
 	threads.Wait()
-	ec.Stop()
+	gec.Stop()
 }
 
 func main() {
-	ec = salticidae.NewEventContext()
+	gec = salticidae.NewEventContext()
 	err := salticidae.NewError()
 
 	var addrs []salticidae.NetAddr
@@ -291,34 +291,31 @@ func main() {
 	netconfig.PingPeriod(2)
 	apps = make([]AppContext, len(addrs))
 	ids = make([](*C.int), len(addrs))
-	for i, addr := range addrs {
-		ec := salticidae.NewEventContext()
-		net := salticidae.NewPeerNetwork(ec, netconfig, &err)
-		checkError(&err)
-		apps[i] = AppContext{
-			addr:  addr,
-			ec:    ec,
-			net:   net,
-			tcall: salticidae.NewThreadCall(ec),
-			tc:    make(map[uint64]*TestContext),
-		}
-		ids[i] = (*C.int)(C.malloc(C.sizeof_int))
-		*ids[i] = C.int(i)
-		_i := unsafe.Pointer(ids[i])
-		mnet := net.AsMsgNetwork()
-		mnet.RegHandler(MSG_OPCODE_RAND, salticidae.MsgNetworkMsgCallback(C.onReceiveRand), _i)
-		mnet.RegHandler(MSG_OPCODE_ACK, salticidae.MsgNetworkMsgCallback(C.onReceiveAck), _i)
-		net.RegPeerHandler(salticidae.PeerNetworkPeerCallback(C.peerHandler), _i)
-		mnet.RegErrorHandler(salticidae.MsgNetworkErrorCallback(C.errorHandler), _i)
-		mnet.Start()
-	}
-
-	threads.Add(len(apps))
-	for i, _ := range apps {
-		app_id := i
+	threads.Add(len(addrs))
+	for i := range apps {
+		appID := i
 		go func() {
+			ec := salticidae.NewEventContext()
+			net := salticidae.NewPeerNetwork(ec, netconfig, &err)
+			checkError(&err)
+			apps[appID] = AppContext{
+				addr:  addrs[appID],
+				ec:    ec,
+				net:   net,
+				tcall: salticidae.NewThreadCall(ec),
+				tc:    make(map[uint64]*TestContext),
+			}
+			ids[appID] = (*C.int)(C.malloc(C.sizeof_int))
+			*ids[appID] = C.int(appID)
+			_i := unsafe.Pointer(ids[appID])
+			mnet := net.AsMsgNetwork()
+			mnet.RegHandler(MSG_OPCODE_RAND, salticidae.MsgNetworkMsgCallback(C.onReceiveRand), _i)
+			mnet.RegHandler(MSG_OPCODE_ACK, salticidae.MsgNetworkMsgCallback(C.onReceiveAck), _i)
+			net.RegPeerHandler(salticidae.PeerNetworkPeerCallback(C.peerHandler), _i)
+			mnet.RegErrorHandler(salticidae.MsgNetworkErrorCallback(C.errorHandler), _i)
+			mnet.Start()
 			err := salticidae.NewError()
-			a := &apps[app_id]
+			a := &apps[appID]
 			a.net.Listen(a.addr, &err)
 			checkError(&err)
 			for _, addr := range addrs {
@@ -332,15 +329,16 @@ func main() {
 			a.ec.Dispatch()
 			a.net.AsMsgNetwork().Stop()
 			a.Free()
-			C.free(unsafe.Pointer(ids[app_id]))
+			C.free(unsafe.Pointer(ids[appID]))
 			threads.Done()
 		}()
 	}
 
-	ev_int := salticidae.NewSigEvent(ec, salticidae.SigEventCallback(C.onTerm), nil)
+	ev_int := salticidae.NewSigEvent(gec, salticidae.SigEventCallback(C.onTerm), nil)
 	ev_int.Add(salticidae.SIGINT)
-	ev_term := salticidae.NewSigEvent(ec, salticidae.SigEventCallback(C.onTerm), nil)
+	ev_term := salticidae.NewSigEvent(gec, salticidae.SigEventCallback(C.onTerm), nil)
 	ev_term.Add(salticidae.SIGTERM)
 
-	ec.Dispatch()
+	gec.Dispatch()
+	threads.Wait()
 }

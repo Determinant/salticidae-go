@@ -44,6 +44,7 @@ func (ec EventContext) detach(ptr RawPtr)                { delete(ec.attached, u
 type CThreadCall = *C.threadcall_t
 type threadCall struct {
 	inner    CThreadCall
+	ec       EventContext
 	autoFree bool
 }
 
@@ -65,6 +66,7 @@ func threadCallSetFinalizer(res ThreadCall, autoFree bool) {
 
 // Free the underlying C pointer manually.
 func (tc ThreadCall) Free() {
+	tc.ec.detach(RawPtr(tc.inner))
 	C.threadcall_free(tc.inner)
 	if tc.autoFree {
 		runtime.SetFinalizer(tc, nil)
@@ -220,7 +222,11 @@ func (ec EventContext) Stop() { C.eventcontext_stop(ec.inner) }
 // EventContext. Each invokcation of AsyncCall() will schedule a function call
 // executed in the given EventContext event loop.
 func NewThreadCall(ec EventContext) ThreadCall {
-	res := &threadCall{inner: C.threadcall_new(ec.inner)}
+	res := &threadCall{
+		inner: C.threadcall_new(ec.inner),
+		ec:    ec,
+	}
+	ec.attach(RawPtr(res.inner), res)
 	threadCallSetFinalizer(res, true)
 	return res
 }
