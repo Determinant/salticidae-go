@@ -43,35 +43,42 @@ func (msg Msg) Free() {
 // Notice this is a zero-copy operation that consumes and invalidates the data
 // in src ("move" semantics) so that no more operation should be done to src
 // after this function call.
-func NewMsgMovedFromByteArray(opcode Opcode, src ByteArray, autoFree bool) Msg {
-	res := MsgFromC(C.msg_new_moved_from_bytearray(C._opcode_t(opcode), src.inner))
+func NewMsgMovedFromByteArray(opcode Opcode, src ByteArray, autoFree bool) (res Msg) {
+	res = MsgFromC(C.msg_new_moved_from_bytearray(C._opcode_t(opcode), src.inner))
 	msgSetFinalizer(res, autoFree)
-	return res
+	runtime.KeepAlive(src)
+	return
 }
 
 // GetPayloadByMove gets the message payload by taking out all data. Notice
 // this is a zero-copy operation that consumes and invalidates the data in the
 // payload ("move" semantics) so that no more operation should be done to the
 // payload after this function call.
-func (msg Msg) GetPayloadByMove() DataStream {
-	res := DataStreamFromC(C.msg_consume_payload(msg.inner))
+func (msg Msg) GetPayloadByMove() (res DataStream) {
+	res = DataStreamFromC(C.msg_consume_payload(msg.inner))
 	dataStreamSetFinalizer(res, true)
-	return res
+	runtime.KeepAlive(msg)
+	return
 }
 
 // GetOpcode gets the opcode.
-func (msg Msg) GetOpcode() Opcode {
-	return Opcode(C.msg_get_opcode(msg.inner))
+func (msg Msg) GetOpcode() (res Opcode) {
+	res = Opcode(C.msg_get_opcode(msg.inner))
+	runtime.KeepAlive(msg)
+	return
 }
 
 // GetMagic gets the magic number.
-func (msg Msg) GetMagic() uint32 {
-	return uint32(C.msg_get_magic(msg.inner))
+func (msg Msg) GetMagic() (res uint32) {
+	res = uint32(C.msg_get_magic(msg.inner))
+	runtime.KeepAlive(msg)
+	return
 }
 
 // SetMagic sets the magic number (the default value is 0x0).
 func (msg Msg) SetMagic(magic uint32) {
 	C.msg_set_magic(msg.inner, C.uint32_t(magic))
+	runtime.KeepAlive(msg)
 }
 
 //// end Msg methods

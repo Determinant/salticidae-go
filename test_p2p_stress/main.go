@@ -237,6 +237,9 @@ func peerHandler(_conn *C.struct_peernetwork_conn_t, connected C.bool, userdata 
 		id := int(*(*C.int)(userdata))
 		app := &apps[id]
 		addr := pconn.GetPeerAddr(true)
+		if addr.IsNull() {
+			return
+		}
 		//defer addr.Free()
 		tc := app.getTC(addr2id(addr))
 		tc.state = 1

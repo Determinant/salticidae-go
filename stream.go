@@ -92,8 +92,8 @@ func (ds DataStream) Free() {
 	}
 }
 
-func (ds DataStream) attach(ptr RawPtr, obj interface{}) { ds.attached[uintptr(ptr)] = obj }
-func (ds DataStream) detach(ptr RawPtr)                  { delete(ds.attached, uintptr(ptr)) }
+func (ds DataStream) attach(ptr rawPtr, obj interface{}) { ds.attached[uintptr(ptr)] = obj }
+func (ds DataStream) detach(ptr rawPtr)                  { delete(ds.attached, uintptr(ptr)) }
 
 //// end DataStream def
 
@@ -134,10 +134,10 @@ func (u256 UInt256) Free() {
 //// begin ByteArray methods
 
 // Create an empty byte array (with zero contained bytes).
-func NewByteArray(autoFree bool) ByteArray {
-	res := ByteArrayFromC(C.bytearray_new())
+func NewByteArray(autoFree bool) (res ByteArray) {
+	res = ByteArrayFromC(C.bytearray_new())
 	byteArraySetFinalizer(res, autoFree)
-	return res
+	return
 }
 
 // NewByteArrayMovedFromDataStream creates a byte array by taking out all data
@@ -148,6 +148,7 @@ func NewByteArray(autoFree bool) ByteArray {
 func NewByteArrayMovedFromDataStream(src DataStream, autoFree bool) (res ByteArray) {
 	res = ByteArrayFromC(C.bytearray_new_moved_from_datastream(src.inner))
 	byteArraySetFinalizer(res, autoFree)
+	runtime.KeepAlive(src)
 	return
 }
 
@@ -156,6 +157,7 @@ func NewByteArrayMovedFromDataStream(src DataStream, autoFree bool) (res ByteArr
 func NewByteArrayCopiedFromDataStream(src DataStream, autoFree bool) (res ByteArray) {
 	res = ByteArrayFromC(C.bytearray_new_copied_from_datastream(src.inner))
 	byteArraySetFinalizer(res, autoFree)
+	runtime.KeepAlive(src)
 	return
 }
 
@@ -163,7 +165,7 @@ func NewByteArrayCopiedFromDataStream(src DataStream, autoFree bool) (res ByteAr
 func NewByteArrayFromHex(hex string) (res ByteArray, autoFree bool) {
 	cStr := C.CString(hex)
 	res = ByteArrayFromC(C.bytearray_new_from_hex(cStr))
-	C.free(RawPtr(cStr))
+	C.free(rawPtr(cStr))
 	byteArraySetFinalizer(res, autoFree)
 	return
 }
@@ -194,10 +196,10 @@ func (ba ByteArray) GetHash(autoFree bool) (res UInt256) {
 //// begin DataStream methods
 
 // NewDataStream creates an empty DataStream.
-func NewDataStream(autoFree bool) DataStream {
-	res := DataStreamFromC(C.datastream_new())
+func NewDataStream(autoFree bool) (res DataStream) {
+	res = DataStreamFromC(C.datastream_new())
 	dataStreamSetFinalizer(res, autoFree)
-	return res
+	return
 }
 
 // NewDataStreamFromBytes creates a DataStream with data copied from bytes.
@@ -218,6 +220,7 @@ func NewDataStreamFromBytes(bytes []byte, autoFree bool) (res DataStream) {
 func NewDataStreamMovedFromByteArray(bytes ByteArray, autoFree bool) (res DataStream) {
 	res = DataStreamFromC(C.datastream_new_moved_from_bytearray(bytes.inner))
 	dataStreamSetFinalizer(res, autoFree)
+	runtime.KeepAlive(bytes)
 	return
 }
 
@@ -226,6 +229,7 @@ func NewDataStreamMovedFromByteArray(bytes ByteArray, autoFree bool) (res DataSt
 func NewDataStreamFromByteArray(bytes ByteArray, autoFree bool) (res DataStream) {
 	res = DataStreamFromC(C.datastream_new_from_bytearray(bytes.inner))
 	dataStreamSetFinalizer(res, autoFree)
+	runtime.KeepAlive(bytes)
 	return
 }
 
@@ -233,72 +237,98 @@ func NewDataStreamFromByteArray(bytes ByteArray, autoFree bool) (res DataStream)
 func (ds DataStream) Copy(autoFree bool) (res DataStream) {
 	res = DataStreamFromC(C.datastream_copy(ds.inner))
 	dataStreamSetFinalizer(res, autoFree)
+	runtime.KeepAlive(ds)
 	return
 }
 
 // GetHash gets the Sha256 hash of the given DataStream content (without
 // consuming the stream).
-func (ds DataStream) GetHash(autoFree bool) UInt256 {
-	res := UInt256FromC(C.datastream_get_hash(ds.inner))
+func (ds DataStream) GetHash(autoFree bool) (res UInt256) {
+	res = UInt256FromC(C.datastream_get_hash(ds.inner))
 	uint256SetFinalizer(res, autoFree)
-	return res
+	runtime.KeepAlive(ds)
+	return
 }
 
 // GetHex gets hexadicemal string representation of the given DataStream
 // content (without consuming the stream).
-func (ds DataStream) GetHex() string {
+func (ds DataStream) GetHex() (res string) {
 	tmp := C.datastream_get_hex(ds.inner)
-	res := C.GoString(tmp)
-	C.free(RawPtr(tmp))
-	return res
+	res = C.GoString(tmp)
+	C.free(rawPtr(tmp))
+	runtime.KeepAlive(ds)
+	return
 }
 
 // TODO: datastream_data
 
 // Clear the DataStream.
-func (ds DataStream) Clear() { C.datastream_clear(ds.inner) }
+func (ds DataStream) Clear() {
+	C.datastream_clear(ds.inner)
+	runtime.KeepAlive(ds)
+}
 
 // Size returns the size of the DataStream.
-func (ds DataStream) Size() int { return int(C.datastream_size(ds.inner)) }
+func (ds DataStream) Size() (res int) {
+	res = int(C.datastream_size(ds.inner))
+	runtime.KeepAlive(ds)
+	return
+}
 
 // PutU8 writes a uint8 integer to the stream (no byte order conversion).
-func (ds DataStream) PutU8(v uint8) bool {
-	return bool(C.datastream_put_u8(ds.inner, C.uint8_t(v)))
+func (ds DataStream) PutU8(v uint8) (res bool) {
+	res = bool(C.datastream_put_u8(ds.inner, C.uint8_t(v)))
+	runtime.KeepAlive(ds)
+	return
 }
 
 // PutU16 writes a uint16 integer to the stream (no byte order conversion).
-func (ds DataStream) PutU16(v uint16) bool {
-	return bool(C.datastream_put_u16(ds.inner, C.uint16_t(v)))
+func (ds DataStream) PutU16(v uint16) (res bool) {
+	res = bool(C.datastream_put_u16(ds.inner, C.uint16_t(v)))
+	runtime.KeepAlive(ds)
+	return
 }
 
 // PutU32 writes a uint32 integer to the stream (no byte order conversion).
-func (ds DataStream) PutU32(v uint32) bool {
-	return bool(C.datastream_put_u32(ds.inner, C.uint32_t(v)))
+func (ds DataStream) PutU32(v uint32) (res bool) {
+	res = bool(C.datastream_put_u32(ds.inner, C.uint32_t(v)))
+	runtime.KeepAlive(ds)
+	return
 }
 
 // PutU64 writes a uint64 integer to the stream (no byte order conversion).
-func (ds DataStream) PutU64(v uint64) bool {
-	return bool(C.datastream_put_u64(ds.inner, C.uint64_t(v)))
+func (ds DataStream) PutU64(v uint64) (res bool) {
+	res = bool(C.datastream_put_u64(ds.inner, C.uint64_t(v)))
+	runtime.KeepAlive(ds)
+	return
 }
 
 // PutI8 writes an int8 integer to the stream (no byte order conversion).
-func (ds DataStream) PutI8(v int8) bool {
-	return bool(C.datastream_put_i8(ds.inner, C.int8_t(v)))
+func (ds DataStream) PutI8(v int8) (res bool) {
+	res = bool(C.datastream_put_i8(ds.inner, C.int8_t(v)))
+	runtime.KeepAlive(ds)
+	return
 }
 
 // PutI16 writes an int16 integer to the stream (no byte order conversion).
-func (ds DataStream) PutI16(v int16) bool {
-	return bool(C.datastream_put_i16(ds.inner, C.int16_t(v)))
+func (ds DataStream) PutI16(v int16) (res bool) {
+	res = bool(C.datastream_put_i16(ds.inner, C.int16_t(v)))
+	runtime.KeepAlive(ds)
+	return
 }
 
 // PutI32 writes an int32 integer to the stream (no byte order conversion).
-func (ds DataStream) PutI32(v int32) bool {
-	return bool(C.datastream_put_i32(ds.inner, C.int32_t(v)))
+func (ds DataStream) PutI32(v int32) (res bool) {
+	res = bool(C.datastream_put_i32(ds.inner, C.int32_t(v)))
+	runtime.KeepAlive(ds)
+	return
 }
 
 // PutI64 writes an int64 integer to the stream (no byte order conversion).
-func (ds DataStream) PutI64(v int32) bool {
-	return bool(C.datastream_put_i64(ds.inner, C.int64_t(v)))
+func (ds DataStream) PutI64(v int32) (res bool) {
+	res = bool(C.datastream_put_i64(ds.inner, C.int64_t(v)))
+	runtime.KeepAlive(ds)
+	return
 }
 
 // PutData writes arbitrary bytes to the stream.
@@ -308,53 +338,70 @@ func (ds DataStream) PutData(bytes []byte) bool {
 		base := (*C.uint8_t)(&bytes[0])
 		return bool(C.datastream_put_data(ds.inner, base, C.size_t(size)))
 	}
+	runtime.KeepAlive(ds)
 	return true
 }
 
 // GetU8 parses a uint8 integer by consuming the stream (no byte order
 // conversion).
-func (ds DataStream) GetU8(succ *bool) uint8 {
-	return uint8(C.datastream_get_u8(ds.inner, (*C.bool)(succ)))
+func (ds DataStream) GetU8(succ *bool) (res uint8) {
+	res = uint8(C.datastream_get_u8(ds.inner, (*C.bool)(succ)))
+	runtime.KeepAlive(ds)
+	return
 }
 
 // GetU16 parses a uint16 integer by consuming the stream (no byte order
 // conversion).
-func (ds DataStream) GetU16(succ *bool) uint16 {
-	return uint16(C.datastream_get_u16(ds.inner, (*C.bool)(succ)))
+func (ds DataStream) GetU16(succ *bool) (res uint16) {
+	res = uint16(C.datastream_get_u16(ds.inner, (*C.bool)(succ)))
+	runtime.KeepAlive(ds)
+	return
 }
 
 // GetU32 parses a uint32 integer by consuming the stream (no byte order
 // conversion).
-func (ds DataStream) GetU32(succ *bool) uint32 {
-	return uint32(C.datastream_get_u32(ds.inner, (*C.bool)(succ)))
+func (ds DataStream) GetU32(succ *bool) (res uint32) {
+	res = uint32(C.datastream_get_u32(ds.inner, (*C.bool)(succ)))
+	runtime.KeepAlive(ds)
+	return
 }
 
 // GetU64 parses a uint64 integer by consuming the stream (no byte order
 // conversion).
-func (ds DataStream) GetU64(succ *bool) uint64 {
-	return uint64(C.datastream_get_u64(ds.inner, (*C.bool)(succ)))
+func (ds DataStream) GetU64(succ *bool) (res uint64) {
+	res = uint64(C.datastream_get_u64(ds.inner, (*C.bool)(succ)))
+	runtime.KeepAlive(ds)
+	return
 }
 
 // GetI8 parses an int8 integer by consuming the stream (no byte order
 // conversion).
-func (ds DataStream) GetI8(succ *bool) int8 {
-	return int8(C.datastream_get_i8(ds.inner, (*C.bool)(succ)))
+func (ds DataStream) GetI8(succ *bool) (res int8) {
+	res = int8(C.datastream_get_i8(ds.inner, (*C.bool)(succ)))
+	runtime.KeepAlive(ds)
+	return
 }
 
 // GetI16 parses an int16 integer by consuming the stream (no byte order
 // conversion).
-func (ds DataStream) GetI16(succ *bool) int16 {
-	return int16(C.datastream_get_i16(ds.inner, (*C.bool)(succ)))
+func (ds DataStream) GetI16(succ *bool) (res int16) {
+	res = int16(C.datastream_get_i16(ds.inner, (*C.bool)(succ)))
+	runtime.KeepAlive(ds)
+	return
 }
 
 // GetI32 parses an int32 integer by consuming the stream (no byte order conversion).
-func (ds DataStream) GetI32(succ *bool) int32 {
-	return int32(C.datastream_get_i32(ds.inner, (*C.bool)(succ)))
+func (ds DataStream) GetI32(succ *bool) (res int32) {
+	res = int32(C.datastream_get_i32(ds.inner, (*C.bool)(succ)))
+	runtime.KeepAlive(ds)
+	return
 }
 
 // GetI64 parses an int64 integer by consuming the stream (no byte order conversion).
-func (ds DataStream) GetI64(succ *bool) int64 {
-	return int64(C.datastream_get_i64(ds.inner, (*C.bool)(succ)))
+func (ds DataStream) GetI64(succ *bool) (res int64) {
+	res = int64(C.datastream_get_i64(ds.inner, (*C.bool)(succ)))
+	runtime.KeepAlive(ds)
+	return
 }
 
 type dataStreamBytes struct {
@@ -370,20 +417,20 @@ type DataStreamBytes = *dataStreamBytes
 func (dsb DataStreamBytes) Get() []byte { return dsb.bytes }
 
 // Release the handle.
-func (dsb DataStreamBytes) Release() { dsb.ds.detach(RawPtr(dsb)) }
+func (dsb DataStreamBytes) Release() { dsb.ds.detach(rawPtr(dsb)) }
 
 // GetDataInPlace gets the given length of preceeding bytes from the stream as
 // a byte slice by consuming the stream. Notice this function does not copy the
 // bytes, so the slice is only valid during the lifetime of DataStreamBytes
 // handle.
-func (ds DataStream) GetDataInPlace(length int) DataStreamBytes {
+func (ds DataStream) GetDataInPlace(length int) (res DataStreamBytes) {
 	base := C.datastream_get_data_inplace(ds.inner, C.size_t(length))
-	res := &dataStreamBytes{
-		bytes: C.GoBytes(RawPtr(base), C.int(length)),
+	res = &dataStreamBytes{
+		bytes: C.GoBytes(rawPtr(base), C.int(length)),
 		ds:    ds,
 	}
-	ds.attach(RawPtr(res), res)
-	return res
+	ds.attach(rawPtr(res), res)
+	return
 }
 
 //// end DataStream methods
@@ -391,30 +438,48 @@ func (ds DataStream) GetDataInPlace(length int) DataStreamBytes {
 //// begin UInt256 methods
 
 // NewUInt256 creates a 256-bit integer.
-func NewUInt256(autoFree bool) UInt256 {
-	res := UInt256FromC(C.uint256_new())
+func NewUInt256(autoFree bool) (res UInt256) {
+	res = UInt256FromC(C.uint256_new())
 	uint256SetFinalizer(res, autoFree)
-	return res
+	return
 }
 
 // NewUInt256FromByteArray creates a 256-bit from the ByteArray.
 func NewUInt256FromByteArray(bytes ByteArray, autoFree bool) (res UInt256) {
 	res = UInt256FromC(C.uint256_new_from_bytearray(bytes.inner))
 	uint256SetFinalizer(res, autoFree)
+	runtime.KeepAlive(bytes)
 	return
 }
 
 // IsNull checks if the UInt256 is empty.
-func (u256 UInt256) IsNull() bool { return bool(C.uint256_is_null(u256.inner)) }
+func (u256 UInt256) IsNull() (res bool) {
+	res = bool(C.uint256_is_null(u256.inner))
+	runtime.KeepAlive(u256)
+	return
+}
 
 // IsEq checks if two 256-bit integers are equal.
-func (u256 UInt256) IsEq(other UInt256) bool { return bool(C.uint256_is_eq(u256.inner, other.inner)) }
+func (u256 UInt256) IsEq(other UInt256) (res bool) {
+	res = bool(C.uint256_is_eq(u256.inner, other.inner))
+	runtime.KeepAlive(u256)
+	runtime.KeepAlive(other)
+	return
+}
 
 // Serialize writes the integer to the given DataStream.
-func (u256 UInt256) Serialize(s DataStream) { C.uint256_serialize(u256.inner, s.inner) }
+func (u256 UInt256) Serialize(s DataStream) {
+	C.uint256_serialize(u256.inner, s.inner)
+	runtime.KeepAlive(u256)
+	runtime.KeepAlive(s)
+}
 
 // Unserialize parses the integer from the given DataStream.
-func (u256 UInt256) Unserialize(s DataStream) { C.uint256_unserialize(u256.inner, s.inner) }
+func (u256 UInt256) Unserialize(s DataStream) {
+	C.uint256_unserialize(u256.inner, s.inner)
+	runtime.KeepAlive(u256)
+	runtime.KeepAlive(s)
+}
 
 // GetHex gets hexadicemal string representation of the 256-bit integer.
 func (u256 UInt256) GetHex() (res string) {

@@ -33,8 +33,8 @@ func (ec EventContext) Free() {
 	}
 }
 
-func (ec EventContext) attach(ptr RawPtr, x interface{}) { ec.attached[uintptr(ptr)] = x }
-func (ec EventContext) detach(ptr RawPtr)                { delete(ec.attached, uintptr(ptr)) }
+func (ec EventContext) attach(ptr rawPtr, x interface{}) { ec.attached[uintptr(ptr)] = x }
+func (ec EventContext) detach(ptr rawPtr)                { delete(ec.attached, uintptr(ptr)) }
 
 //// end EventContext def
 
@@ -66,7 +66,6 @@ func threadCallSetFinalizer(res ThreadCall, autoFree bool) {
 
 // Free the underlying C pointer manually.
 func (tc ThreadCall) Free() {
-	tc.ec.detach(RawPtr(tc.inner))
 	C.threadcall_free(tc.inner)
 	if tc.autoFree {
 		runtime.SetFinalizer(tc, nil)
@@ -102,7 +101,6 @@ func timerEventSetFinalizer(res TimerEvent, autoFree bool) {
 
 // Free the underlying C pointer manually.
 func (te TimerEvent) Free() {
-	te.Clear()
 	C.timerev_free(te.inner)
 	if te.autoFree {
 		runtime.SetFinalizer(te, nil)
@@ -141,7 +139,6 @@ func sigEventSetFinalizer(res SigEvent, autoFree bool) {
 
 // Free the underlying C pointer manually.
 func (se SigEvent) Free() {
-	se.Clear()
 	C.sigev_free(se.inner)
 	if se.autoFree {
 		runtime.SetFinalizer(se, nil)
@@ -190,13 +187,13 @@ func (q MPSCQueue) Free() {
 //// begin EventContext methods
 
 // NewEventContext creates an EventContext object.
-func NewEventContext() EventContext {
-	res := &eventContext{
+func NewEventContext() (res EventContext) {
+	res = &eventContext{
 		inner:    C.eventcontext_new(),
 		attached: make(map[uintptr]interface{}),
 	}
 	eventContextSetFinalizer(res, true)
-	return res
+	return
 }
 
 //// end MPSCQueue
@@ -206,13 +203,19 @@ func NewEventContext() EventContext {
 // Dispatch starts the event loop. This is a blocking call that will hand over
 // the control flow to the infinite loop which triggers callbacks upon new
 // events.  The function will return when Stop() is called.
-func (ec EventContext) Dispatch() { C.eventcontext_dispatch(ec.inner) }
+func (ec EventContext) Dispatch() {
+	C.eventcontext_dispatch(ec.inner)
+	runtime.KeepAlive(ec)
+}
 
 // Stop the event loop. This function is typically called in a callback. Notice
 // that all methods of an EventContext should be invoked by the same thread
 // which logically owns the loop. To schedule code executed in the event loop
 // of a particular thread, see ThreadCall.
-func (ec EventContext) Stop() { C.eventcontext_stop(ec.inner) }
+func (ec EventContext) Stop() {
+	C.eventcontext_stop(ec.inner)
+	runtime.KeepAlive(ec)
+}
 
 //// end EventContext methods
 
@@ -221,19 +224,21 @@ func (ec EventContext) Stop() { C.eventcontext_stop(ec.inner) }
 // NewThreadCall creates a ThreadCall handle attached to the given
 // EventContext. Each invokcation of AsyncCall() will schedule a function call
 // executed in the given EventContext event loop.
-func NewThreadCall(ec EventContext) ThreadCall {
-	res := &threadCall{
+func NewThreadCall(ec EventContext) (res ThreadCall) {
+	res = &threadCall{
 		inner: C.threadcall_new(ec.inner),
 		ec:    ec,
 	}
-	ec.attach(RawPtr(res.inner), res)
+	ec.attach(rawPtr(res.inner), res)
 	threadCallSetFinalizer(res, true)
-	return res
+	runtime.KeepAlive(ec)
+	return
 }
 
 // AsyncCall schedules a function to be executed in the target event loop.
-func (tc ThreadCall) AsyncCall(callback ThreadCallCallback, userdata RawPtr) {
+func (tc ThreadCall) AsyncCall(callback ThreadCallCallback, userdata rawPtr) {
 	C.threadcall_async_call(tc.inner, callback, userdata)
+	runtime.KeepAlive(tc)
 }
 
 //// end ThreadCall methods
@@ -242,36 +247,43 @@ func (tc ThreadCall) AsyncCall(callback ThreadCallCallback, userdata RawPtr) {
 
 // NewTimerEvent creates a TimerEvent handle attached to the given
 // EventContext, with a registered callback.
-func NewTimerEvent(ec EventContext, cb TimerEventCallback, userdata RawPtr) TimerEvent {
-	res := &timerEvent{
+func NewTimerEvent(ec EventContext, cb TimerEventCallback, userdata rawPtr) (res TimerEvent) {
+	res = &timerEvent{
 		inner: C.timerev_new(ec.inner, cb, userdata),
 		ec:    ec,
 	}
-	ec.attach(RawPtr(res.inner), res)
+	ec.attach(rawPtr(res.inner), res)
 	timerEventSetFinalizer(res, true)
-	return res
+	runtime.KeepAlive(ec)
+	return
 }
 
 // SetCallback changes the callback.
-func (te TimerEvent) SetCallback(callback TimerEventCallback, userdata RawPtr) {
+func (te TimerEvent) SetCallback(callback TimerEventCallback, userdata rawPtr) {
 	C.timerev_set_callback(te.inner, callback, userdata)
+	runtime.KeepAlive(te)
 }
 
 // Add schedules the timer to go off after t_sec seconds.
-func (te TimerEvent) Add(sec float64) { C.timerev_add(te.inner, C.double(sec)) }
+func (te TimerEvent) Add(sec float64) {
+	C.timerev_add(te.inner, C.double(sec))
+	runtime.KeepAlive(te)
+}
 
 // Del unschedules the timer if it was scheduled. The timer could still be
 // rescheduled by calling Add() afterwards.
 func (te TimerEvent) Del() {
-	te.ec.detach(RawPtr(te.inner))
+	te.ec.detach(rawPtr(te.inner))
 	C.timerev_del(te.inner)
+	runtime.KeepAlive(te)
 }
 
 // Clear the timer. It will be unscheduled and deallocated and its methods
 // should never be called again.
 func (te TimerEvent) Clear() {
-	te.ec.detach(RawPtr(te.inner))
+	te.ec.detach(rawPtr(te.inner))
 	C.timerev_clear(te.inner)
+	runtime.KeepAlive(te)
 }
 
 //// end TimerEvent methods
@@ -280,30 +292,36 @@ func (te TimerEvent) Clear() {
 
 // NewSigEvent creates a SigEvent handle attached to the given EventContext,
 // with a registered callback.
-func NewSigEvent(ec EventContext, cb SigEventCallback, userdata RawPtr) SigEvent {
-	res := &sigEvent{
+func NewSigEvent(ec EventContext, cb SigEventCallback, userdata rawPtr) (res SigEvent) {
+	res = &sigEvent{
 		inner: C.sigev_new(ec.inner, cb, userdata),
 		ec:    ec,
 	}
-	ec.attach(RawPtr(res.inner), res)
+	ec.attach(rawPtr(res.inner), res)
 	sigEventSetFinalizer(res, true)
-	return res
+	runtime.KeepAlive(ec)
+	return
 }
 
 // Add registers the handle to listen for UNIX signal sig.
-func (se SigEvent) Add(sig int) { C.sigev_add(se.inner, C.int(sig)) }
+func (se SigEvent) Add(sig int) {
+	C.sigev_add(se.inner, C.int(sig))
+	runtime.KeepAlive(se)
+}
 
 // Del unregisters the handle. The handle may be re-registered in the future.
 func (se SigEvent) Del() {
-	se.ec.detach(RawPtr(se.inner))
+	se.ec.detach(rawPtr(se.inner))
 	C.sigev_del(se.inner)
+	runtime.KeepAlive(se)
 }
 
 // Clear the handle. Any methods of the handle should no longer be used
 // and the handle will be deallocated.
 func (se SigEvent) Clear() {
-	se.ec.detach(RawPtr(se.inner))
+	se.ec.detach(rawPtr(se.inner))
 	C.sigev_clear(se.inner)
+	runtime.KeepAlive(se)
 }
 
 //// end SigEvent methods
@@ -311,43 +329,51 @@ func (se SigEvent) Clear() {
 //// begin MPSCQueue methods
 
 // NewMPSCQueue creates a MPSCQueue object.
-func NewMPSCQueue() MPSCQueue {
-	res := &mpscQueue{inner: C.mpscqueue_new(), ec: nil}
+func NewMPSCQueue() (res MPSCQueue) {
+	res = &mpscQueue{inner: C.mpscqueue_new(), ec: nil}
 	mpscQueueSetFinalizer(res, true)
-	return res
+	return
 }
 
 // RegHandler registers the callback invoked when there are new elements in the
 // MPSC queue.
-func (q MPSCQueue) RegHandler(ec EventContext, callback MPSCQueueCallback, userdata RawPtr) {
+func (q MPSCQueue) RegHandler(ec EventContext, callback MPSCQueueCallback, userdata rawPtr) {
 	C.mpscqueue_reg_handler(q.inner, ec.inner, callback, userdata)
 	q.ec = ec
-	ec.attach(RawPtr(q.inner), q)
+	ec.attach(rawPtr(q.inner), q)
+	runtime.KeepAlive(q)
+	runtime.KeepAlive(ec)
 }
 
 // UnregHandler unregisters the callback.
 func (q MPSCQueue) UnregHandler() {
-	q.ec.detach(RawPtr(q.inner))
+	q.ec.detach(rawPtr(q.inner))
 	C.mpscqueue_unreg_handler(q.inner)
+	runtime.KeepAlive(q)
 }
 
 // Enqueue an element (thread-safe). It returns true if successful. If
 // unbounded is true the queue is expanded when full (and this function will
 // return true).
-func (q MPSCQueue) Enqueue(elem RawPtr, unbounded bool) bool {
-	return bool(C.mpscqueue_enqueue(q.inner, elem, C.bool(unbounded)))
+func (q MPSCQueue) Enqueue(elem rawPtr, unbounded bool) (res bool) {
+	res = bool(C.mpscqueue_enqueue(q.inner, elem, C.bool(unbounded)))
+	runtime.KeepAlive(q)
+	return
 }
 
 // TryDequeue tries to dequeue an element from the queue (should only be called
 // from one thread). It returns true if successful.
-func (q MPSCQueue) TryDequeue(elem *RawPtr) bool {
-	return bool(C.mpscqueue_try_dequeue(q.inner, elem))
+func (q MPSCQueue) TryDequeue(elem *rawPtr) (res bool) {
+	res = bool(C.mpscqueue_try_dequeue(q.inner, elem))
+	runtime.KeepAlive(q)
+	return
 }
 
 // SetCapacity sets the initial capacity of the queue. This should only be
 // called before the first dequeue/enqueue operation.
 func (q MPSCQueue) SetCapacity(capacity int) {
 	C.mpscqueue_set_capacity(q.inner, C.size_t(capacity))
+	runtime.KeepAlive(q)
 }
 
 //// end MPSCQueue methods

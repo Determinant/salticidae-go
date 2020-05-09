@@ -83,40 +83,50 @@ func (naa NetAddrArray) Free() {
 func NewNetAddrFromIPPortString(addr string, autoFree bool, err *Error) (res NetAddr) {
 	cStr := C.CString(addr)
 	res = NetAddrFromC(C.netaddr_new_from_sipport(cStr, err))
-	C.free(RawPtr(cStr))
+	C.free(rawPtr(cStr))
 	netAddrSetFinalizer(res, autoFree)
 	return
 }
 
 // IsEq checks if two addresses are the same.
-func (na NetAddr) IsEq(other NetAddr) bool {
-	return bool(C.netaddr_is_eq(na.inner, other.inner))
+func (na NetAddr) IsEq(other NetAddr) (res bool) {
+	res = bool(C.netaddr_is_eq(na.inner, other.inner))
+	runtime.KeepAlive(na)
+	runtime.KeepAlive(other)
+	return
 }
 
 // IsNull checks the address is empty.
-func (na NetAddr) IsNull() bool {
-	return bool(C.netaddr_is_null(na.inner))
+func (na NetAddr) IsNull() (res bool) {
+	res = bool(C.netaddr_is_null(na.inner))
+	runtime.KeepAlive(na)
+	return
 }
 
 // GetIP gets the 32-bit IP representation.
-func (na NetAddr) GetIP() uint32 {
-	return uint32(C.netaddr_get_ip(na.inner))
+func (na NetAddr) GetIP() (res uint32) {
+	res = uint32(C.netaddr_get_ip(na.inner))
+	runtime.KeepAlive(na)
+	return
 }
 
 // GetPort gets the 16-bit port number (in UNIX network byte order, so need to
 // apply ntohs(), for example, to convert the returned integer to the local
 // endianness).
-func (na NetAddr) GetPort() uint16 {
-	return uint16(C.netaddr_get_port(na.inner))
+func (na NetAddr) GetPort() (res uint16) {
+	res = uint16(C.netaddr_get_port(na.inner))
+	runtime.KeepAlive(na)
+	return
 }
 
 // Copy the object. This is required if you want to keep the NetAddr returned
 // (or passed as a callback parameter) by other salticidae methods (such like
 // MsgNetwork/PeerNetwork), unless those method return a moved object.
-func (na NetAddr) Copy(autoFree bool) NetAddr {
-	res := NetAddrFromC(C.netaddr_copy(na.inner))
+func (na NetAddr) Copy(autoFree bool) (res NetAddr) {
+	res = NetAddrFromC(C.netaddr_copy(na.inner))
 	netAddrSetFinalizer(res, autoFree)
-	return res
+	runtime.KeepAlive(na)
+	return
 }
 
 //// end NetAddr methods
@@ -129,11 +139,12 @@ func NewNetAddrArrayFromAddrs(arr []NetAddr, autoFree bool) (res NetAddrArray) {
 	_arr := make([]CNetAddr, size)
 	for i, v := range arr {
 		_arr[i] = v.inner
+		runtime.KeepAlive(v)
 	}
 	if size > 0 {
 		// FIXME: here we assume struct of a single pointer has the same memory
 		// footprint the pointer
-		base := (**C.netaddr_t)(RawPtr(&_arr[0]))
+		base := (**C.netaddr_t)(rawPtr(&_arr[0]))
 		res = NetAddrArrayFromC(C.netaddr_array_new_from_addrs(base, C.size_t(size)))
 	} else {
 		res = NetAddrArrayFromC(C.netaddr_array_new())

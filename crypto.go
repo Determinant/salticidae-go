@@ -5,96 +5,154 @@ package salticidae
 import "C"
 import "runtime"
 
-// The C pointer type for a X509 handle.
-type CX509 = *C.x509_t
-type x509 struct{ inner CX509 }
+//// begin X509 def
 
-// The handle for a X509 certificate.
+// CX509 is the C pointer type for a X509 handle.
+type CX509 = *C.x509_t
+type x509 struct {
+	inner    CX509
+	autoFree bool
+}
+
+// X509 is the handle for a X509 certificate.
 type X509 = *x509
 
+// X509FromC converts an existing C pointer into a go pointer
 func X509FromC(ptr CX509) X509 {
 	return &x509{inner: ptr}
 }
 
-func NewX509FromPemFile(fname string, passwd *string, err *Error) X509 {
-	fname_c_str := C.CString(fname)
-	passwd_c_str := (*C.char)(nil)
-	if passwd != nil {
-		passwd_c_str = C.CString(*passwd)
+func x509SetFinalizer(res X509, autoFree bool) {
+	res.autoFree = autoFree
+	if res != nil && autoFree {
+		runtime.SetFinalizer(res, func(self X509) { self.Free() })
 	}
-	res := X509FromC(C.x509_new_from_pem_file(fname_c_str, passwd_c_str, err))
-	if res != nil {
-		runtime.SetFinalizer(res, func(self X509) { self.free() })
-	}
-	C.free(RawPtr(fname_c_str))
-	if passwd_c_str != nil {
-		C.free(RawPtr(passwd_c_str))
-	}
-	return res
 }
 
-func NewX509FromDer(der ByteArray, err *Error) X509 {
-	res := X509FromC(C.x509_new_from_der(der.inner, err))
-	if res != nil {
-		runtime.SetFinalizer(res, func(self X509) { self.free() })
+// Free manually frees the underlying C pointer.
+func (x509 X509) Free() {
+	C.x509_free(x509.inner)
+	if x509.autoFree {
+		runtime.SetFinalizer(x509, nil)
 	}
-	return res
 }
 
-func (self X509) free() { C.x509_free(self.inner) }
-func (self X509) GetPubKey() PKey {
-	res := &pKey{inner: C.x509_get_pubkey(self.inner)}
-	runtime.SetFinalizer(res, func(self PKey) { self.free() })
-	return res
-}
+//// end X509 def
 
-func (self X509) GetDer(autoFree bool) ByteArray {
-	res := ByteArrayFromC(C.x509_get_der(self.inner))
-	byteArraySetFinalizer(res, autoFree)
-	return res
-}
+//// begin PKey def
 
-// The C pointer type for a PKey handle.
+// CPKey is the C pointer type for a PKey handle.
 type CPKey = *C.pkey_t
-type pKey struct{ inner CPKey }
+type pKey struct {
+	inner    CPKey
+	autoFree bool
+}
 
-// The handle for an OpenSSL EVP_PKEY.
+// PKey is the handle for an OpenSSL EVP_PKEY.
 type PKey = *pKey
 
-func NewPrivKeyFromPemFile(fname string, passwd *string, err *Error) PKey {
-	fname_c_str := C.CString(fname)
-	passwd_c_str := (*C.char)(nil)
+// PKeyFromC converts an existing C pointer into a go pointer
+func PKeyFromC(ptr CPKey) PKey {
+	return &pKey{inner: ptr}
+}
+
+func pKeySetFinalizer(res PKey, autoFree bool) {
+	res.autoFree = autoFree
+	if res != nil && autoFree {
+		runtime.SetFinalizer(res, func(self PKey) { self.Free() })
+	}
+}
+
+// Free manually frees the underlying C pointer.
+func (pkey PKey) Free() {
+	C.pkey_free(pkey.inner)
+	if pkey.autoFree {
+		runtime.SetFinalizer(pkey, nil)
+	}
+}
+
+//// end PKey def
+
+//// begin X509 methods
+
+// NewX509FromPemFile loads X509 object from a file.
+func NewX509FromPemFile(fname string, passwd *string, err *Error) (res X509) {
+	fnameCStr := C.CString(fname)
+	passwdCStr := (*C.char)(nil)
 	if passwd != nil {
-		passwd_c_str = C.CString(*passwd)
+		passwdCStr = C.CString(*passwd)
 	}
-	res := &pKey{inner: C.pkey_new_privkey_from_pem_file(fname_c_str, passwd_c_str, err)}
-	if res != nil {
-		runtime.SetFinalizer(res, func(self PKey) { self.free() })
+	res = X509FromC(C.x509_new_from_pem_file(fnameCStr, passwdCStr, err))
+	x509SetFinalizer(res, true)
+	C.free(rawPtr(fnameCStr))
+	if passwdCStr != nil {
+		C.free(rawPtr(passwdCStr))
 	}
-	C.free(RawPtr(fname_c_str))
-	if passwd_c_str != nil {
-		C.free(RawPtr(passwd_c_str))
-	}
-	return res
+	return
 }
 
-func NewPrivKeyFromDer(der ByteArray, err *Error) PKey {
-	res := &pKey{inner: C.pkey_new_privkey_from_der(der.inner, err)}
-	if res != nil {
-		runtime.SetFinalizer(res, func(self PKey) { self.free() })
-	}
-	return res
+// NewX509FromDer loads X509 object from a DER ByteArray.
+func NewX509FromDer(der ByteArray, err *Error) (res X509) {
+	res = X509FromC(C.x509_new_from_der(der.inner, err))
+	x509SetFinalizer(res, true)
+	runtime.KeepAlive(der)
+	return
 }
 
-func (self PKey) free() { C.pkey_free(self.inner) }
-func (self PKey) GetPubKeyDer(autoFree bool) ByteArray {
-	res := ByteArrayFromC(C.pkey_get_pubkey_der(self.inner))
+// GetPubKey returns the public key.
+func (x509 X509) GetPubKey() (res PKey) {
+	res = PKeyFromC(C.x509_get_pubkey(x509.inner))
+	pKeySetFinalizer(res, true)
+	runtime.KeepAlive(x509)
+	return
+}
+
+// GetDer returns the DER format copy.
+func (x509 X509) GetDer(autoFree bool) (res ByteArray) {
+	res = ByteArrayFromC(C.x509_get_der(x509.inner))
 	byteArraySetFinalizer(res, autoFree)
-	return res
+	runtime.KeepAlive(x509)
+	return
 }
 
-func (self PKey) GetPrivKeyDer(autoFree bool) ByteArray {
-	res := ByteArrayFromC(C.pkey_get_privkey_der(self.inner))
-	byteArraySetFinalizer(res, autoFree)
-	return res
+//// end X509 methods
+
+//// begin PKey methods
+
+func NewPrivKeyFromPemFile(fname string, passwd *string, err *Error) (res PKey) {
+	fnameCStr := C.CString(fname)
+	passwdCStr := (*C.char)(nil)
+	if passwd != nil {
+		passwdCStr = C.CString(*passwd)
+	}
+	res = PKeyFromC(C.pkey_new_privkey_from_pem_file(fnameCStr, passwdCStr, err))
+	pKeySetFinalizer(res, true)
+	C.free(rawPtr(fnameCStr))
+	if passwdCStr != nil {
+		C.free(rawPtr(passwdCStr))
+	}
+	return
 }
+
+func NewPrivKeyFromDer(der ByteArray, err *Error) (res PKey) {
+	res = PKeyFromC(C.pkey_new_privkey_from_der(der.inner, err))
+	pKeySetFinalizer(res, true)
+	runtime.KeepAlive(der)
+	return
+}
+
+func (pkey PKey) GetPubKeyDer(autoFree bool) (res ByteArray) {
+	res = ByteArrayFromC(C.pkey_get_pubkey_der(pkey.inner))
+	byteArraySetFinalizer(res, autoFree)
+	runtime.KeepAlive(pkey)
+	return
+}
+
+func (pkey PKey) GetPrivKeyDer(autoFree bool) (res ByteArray) {
+	res = ByteArrayFromC(C.pkey_get_privkey_der(pkey.inner))
+	byteArraySetFinalizer(res, autoFree)
+	runtime.KeepAlive(pkey)
+	return
+}
+
+//// end PKey methods
