@@ -11,6 +11,7 @@ import "runtime"
 type CMsgNetwork = *C.msgnetwork_t
 type msgNetwork struct {
 	inner    CMsgNetwork
+	dep      interface{}
 	autoFree bool
 }
 
@@ -84,6 +85,7 @@ func (conn MsgNetworkConn) Free() {
 type CMsgNetworkConfig = *C.msgnetwork_config_t
 type msgNetworkConfig struct {
 	inner    CMsgNetworkConfig
+	dep      interface{}
 	autoFree bool
 }
 
@@ -136,6 +138,7 @@ type MsgNetworkErrorCallback = C.msgnetwork_error_callback_t
 type CPeerNetwork = *C.peernetwork_t
 type peerNetwork struct {
 	inner    CPeerNetwork
+	dep      interface{}
 	autoFree bool
 }
 
@@ -306,6 +309,7 @@ func (pidarr PeerIDArray) Free() {
 type CClientNetwork = *C.clientnetwork_t
 type clientNetwork struct {
 	inner    CClientNetwork
+	dep      interface{}
 	autoFree bool
 }
 
@@ -383,11 +387,11 @@ var (
 // already closed.
 type MsgNetworkConnMode = C.msgnetwork_conn_mode_t
 
-// GetNet gets the corresponding MsgNetwork handle that manages this connection. The
-// returned handle is only valid during the lifetime of this connection.
+// GetNet gets the corresponding MsgNetwork handle that manages this connection.
+// The conn can only be GC'ed when res is no longer used.
 func (conn MsgNetworkConn) GetNet() (res MsgNetwork) {
 	res = MsgNetworkFromC(C.msgnetwork_conn_get_net(conn.inner))
-	runtime.KeepAlive(conn)
+	res.dep = conn
 	return
 }
 
@@ -401,9 +405,10 @@ func (conn MsgNetworkConn) GetMode() (res MsgNetworkConnMode) {
 // GetAddr gets the address of the remote end of this connection. Use Copy() to
 // make a copy of the address if you want to use the address object beyond the
 // lifetime of the connection.
+// The conn can only be GC'ed when res is no longer used.
 func (conn MsgNetworkConn) GetAddr() (res NetAddr) {
 	res = NetAddrFromC(C.msgnetwork_conn_get_addr(conn.inner))
-	runtime.KeepAlive(conn)
+	res.dep = conn
 	return
 }
 
@@ -417,9 +422,10 @@ func (conn MsgNetworkConn) IsTerminated() (res bool) {
 // GetPeerCert gets the certificate of the remote end of this connection. Use
 // Copy() to make a copy of the certificate if you want to use the certificate
 // object beyond the lifetime of the connection.
+// The conn can only be GC'ed when res is no longer used.
 func (conn MsgNetworkConn) GetPeerCert() (res X509) {
-	res = &x509{inner: C.msgnetwork_conn_get_peer_cert(conn.inner)}
-	runtime.KeepAlive(conn)
+	res = X509FromC(C.msgnetwork_conn_get_peer_cert(conn.inner))
+	res.dep = conn
 	return
 }
 
@@ -687,9 +693,10 @@ func (config PeerNetworkConfig) IDMode(mode PeerNetworkIDMode) {
 // AsMsgNetworkConfig uses the PeerNetworkConfig object as a MsgNetworkConfig
 // object (to invoke the methods inherited from MsgNetworkConfig, such as
 // NWorker).
+// The config can only be GC'ed when res is no longer used.
 func (config PeerNetworkConfig) AsMsgNetworkConfig() (res MsgNetworkConfig) {
 	res = MsgNetworkConfigFromC(C.peernetwork_config_as_msgnetwork_config(config.inner))
-	runtime.KeepAlive(config)
+	res.dep = config
 	return
 }
 
@@ -730,9 +737,10 @@ func NewPeerIDCopiedFromUInt256(rawID UInt256, autoFree bool) (res PeerID) {
 }
 
 // AsUInt256 treats PeerID as its underlying UInt256.
+// The pid can only be GC'ed when res is no longer used.
 func (pid PeerID) AsUInt256() (res UInt256) {
 	res = UInt256FromC(C.peerid_as_uint256(pid.inner))
-	runtime.KeepAlive(pid)
+	res.dep = pid
 	return
 }
 
@@ -912,17 +920,19 @@ func (net PeerNetwork) RegUnknownPeerHandler(callback PeerNetworkUnknownPeerCall
 
 // AsMsgNetwork uses the PeerNetwork handle as a MsgNetwork handle (to invoke
 // the methods inherited from MsgNetwork, such as RegHandler).
+// The net can only be GC'ed when res is no longer used.
 func (net PeerNetwork) AsMsgNetwork() (res MsgNetwork) {
 	res = MsgNetworkFromC(C.peernetwork_as_msgnetwork(net.inner))
-	runtime.KeepAlive(net)
+	res.dep = net
 	return
 }
 
 // AsPeerNetworkUnsafe use the MsgNetwork handle as a PeerNetwork handle
 // (forcing the conversion).
+// The net can only be GC'ed when res is no longer used.
 func (net MsgNetwork) AsPeerNetworkUnsafe() (res PeerNetwork) {
 	res = PeerNetworkFromC(C.msgnetwork_as_peernetwork_unsafe(net.inner))
-	runtime.KeepAlive(net)
+	res.dep = net
 	return
 }
 
@@ -1012,17 +1022,19 @@ func (net ClientNetwork) SendMsgDeferredByMove(msg Msg, addr NetAddr) (res int32
 
 // AsMsgNetwork uses the ClientNetwork handle as a MsgNetwork handle (to invoke
 // the methods inherited from MsgNetwork, such as RegHandler).
+// The net can only be GC'ed when res is no longer used.
 func (net ClientNetwork) AsMsgNetwork() (res MsgNetwork) {
 	res = MsgNetworkFromC(C.clientnetwork_as_msgnetwork(net.inner))
-	runtime.KeepAlive(net)
+	res.dep = net
 	return
 }
 
 // AsClientNetworkUnsafe uses the MsgNetwork handle as a ClientNetwork handle
 // (forcing the conversion).
+// The net can only be GC'ed when res is no longer used.
 func (net MsgNetwork) AsClientNetworkUnsafe() (res ClientNetwork) {
 	res = ClientNetworkFromC(C.msgnetwork_as_clientnetwork_unsafe(net.inner))
-	runtime.KeepAlive(net)
+	res.dep = net
 	return
 }
 

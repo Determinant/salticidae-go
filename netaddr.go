@@ -11,6 +11,7 @@ import "runtime"
 type CNetAddr = *C.netaddr_t
 type netAddr struct {
 	inner    CNetAddr
+	dep      interface{}
 	autoFree bool
 }
 

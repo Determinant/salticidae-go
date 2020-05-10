@@ -11,6 +11,7 @@ import "runtime"
 type CX509 = *C.x509_t
 type x509 struct {
 	inner    CX509
+	dep      interface{}
 	autoFree bool
 }
 

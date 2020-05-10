@@ -103,6 +103,7 @@ func (ds DataStream) detach(ptr rawPtr)                  { delete(ds.attached, u
 type CUInt256 = *C.uint256_t
 type uint256 struct {
 	inner    CUInt256
+	dep      interface{}
 	autoFree bool
 }
 
