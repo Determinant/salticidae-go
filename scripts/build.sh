@@ -25,4 +25,9 @@ if [[ "$OSTYPE" == "linux-gnu" ]]; then
     cd -
     mkdir -p $SALTICIDAE_GO_PATH/build
     ln -svf "$SALTICIDAE_PATH/build/lib/libsalticidae.a" "$SALTICIDAE_GO_PATH/build/libsalticidae.a"
+elif [[ "$OSTYPE" == "darwin"* ]]; then
+    brew install Determinant/salticidae/salticidae
+else
+    echo "Your operating system is not supported."
+    exit 1
 fi
