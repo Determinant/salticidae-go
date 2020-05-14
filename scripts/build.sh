@@ -1,33 +1,26 @@
 #!/bin/bash -e
 
-SRC_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd ) # Directory above this script
+PREFIX="${PREFIX:-$(pwd)/build}"
+SRC_DIR="$(dirname "${BASH_SOURCE[0]}")"
 
-source $SRC_DIR/env.sh
+source "${SRC_DIR}/env.sh"
 
-# Fetch dependencies (salticidae)
-echo "Fetching dependencies..."
-go mod download
-
-if [ ! -d $SALTICIDAE_PATH ]; then
-    echo "couldn't find salticidae version ${SALTICIDAE_VER} at ${SALTICIDAE_PATH}"
-    echo "build failed"
-    exit 1
-fi
-
-# Build salticidae
-echo "Building salticidae..."
 if [[ "$OSTYPE" == "linux-gnu" ]]; then
-    chmod -R u+w $SALTICIDAE_PATH
-    cd $SALTICIDAE_PATH
+    go get -u -d "github.com/$SALTICIDAE_ORG/salticidae-go"
+    cd "$SALTICIDAE_GO_PATH"
+    git -c advice.detachedHead=false checkout "$SALTICIDAE_GO_VER"
+    git submodule update --init --recursive
+    cd "$SALTICIDAE_PATH"
     cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="$SALTICIDAE_PATH/build" .
     make -j4
     make install
     cd -
-    mkdir -p $SALTICIDAE_GO_PATH/build
-    ln -svf "$SALTICIDAE_PATH/build/lib/libsalticidae.a" "$SALTICIDAE_GO_PATH/build/libsalticidae.a"
+    mkdir -p "$PREFIX"
+    rm -f "$PREFIX/libsalticidae.a"
+    ln -sv "$SALTICIDAE_PATH/build/lib/libsalticidae.a" "$PREFIX/libsalticidae.a"
 elif [[ "$OSTYPE" == "darwin"* ]]; then
     brew install Determinant/salticidae/salticidae
 else
-    echo "Your operating system is not supported."
+    echo "Your system is not supported yet."
     exit 1
 fi
