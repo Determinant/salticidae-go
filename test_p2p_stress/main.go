@@ -6,6 +6,7 @@ package main
 // #include "salticidae/network.h"
 // void onTerm(int sig, void *);
 // void onReceiveRand(msg_t *, msgnetwork_conn_t *, void *);
+// void onReceiveBroadcast(msg_t *, msgnetwork_conn_t *, void *);
 // void onReceiveAck(msg_t *, msgnetwork_conn_t *, void *);
 // void onStopLoop(threadcall_handle_t *, void *);
 // void peerHandler(peernetwork_conn_t *, bool, void *);
@@ -37,6 +38,7 @@ import (
 
 const (
 	MSG_OPCODE_RAND salticidae.Opcode = iota
+	MSG_OPCODE_BROADCAST
 	MSG_OPCODE_ACK
 )
 
@@ -65,6 +67,14 @@ func msgRandUnserialize(msg salticidae.Msg) (view uint32, hash salticidae.UInt25
 	defer ba.Free()
 	hash = ba.GetHash(true)
 	return
+}
+
+func msgBroadcastSerialize() salticidae.Msg {
+	serialized := salticidae.NewDataStream(false)
+	defer serialized.Free()
+	payload := salticidae.NewByteArrayMovedFromDataStream(serialized, false)
+	defer payload.Free()
+	return salticidae.NewMsgMovedFromByteArray(MSG_OPCODE_BROADCAST, payload, true)
 }
 
 func msgAckSerialize(view uint32, hash salticidae.UInt256) salticidae.Msg {
@@ -104,6 +114,7 @@ type TestContext struct {
 
 type AppContext struct {
 	addr  salticidae.NetAddr
+	peers []salticidae.PeerID
 	ec    salticidae.EventContext
 	net   salticidae.PeerNetwork
 	tcall salticidae.ThreadCall
@@ -136,6 +147,12 @@ func (self AppContext) getTC(addrID uint64) (_tc *TestContext) {
 	return
 }
 
+func sendBroadcast(app *AppContext, conn salticidae.MsgNetworkConn) {
+	msg := msgBroadcastSerialize()
+	defer msg.Free()
+	app.net.MulticastMsgByMove(msg, app.peers)
+}
+
 func sendRand(size int, app *AppContext, conn salticidae.MsgNetworkConn, tc *TestContext) {
 	tc.view++
 	msg, hash := msgRandSerialize(tc.view, size)
@@ -164,6 +181,10 @@ func onTimeout(_ *C.timerev_t, userdata unsafe.Pointer) {
 		s += fmt.Sprintf(" %d(%d)", C.ntohs(C.ushort(addrID>>32)), v.ncompleted)
 	}
 	fmt.Printf("INFO: %d completed:%s\n", C.ntohs(C.ushort(app.addr.GetPort())), s)
+}
+
+//export onReceiveBroadcast
+func onReceiveBroadcast(_msg *C.struct_msg_t, _conn *C.struct_msgnetwork_conn_t, _ unsafe.Pointer) {
 }
 
 //export onReceiveRand
@@ -244,6 +265,7 @@ func peerHandler(_conn *C.struct_peernetwork_conn_t, connected C.bool, userdata 
 		}
 		tc := app.getTC(addr2id(addr))
 		tc.state = 1
+		sendBroadcast(app, conn)
 		sendRand(tc.state, app, conn, tc)
 	}
 }
@@ -319,6 +341,7 @@ func main() {
 			_i := unsafe.Pointer(ids[appID])
 			mnet := net.AsMsgNetwork()
 			mnet.RegHandler(MSG_OPCODE_RAND, salticidae.MsgNetworkMsgCallback(C.onReceiveRand), _i)
+			mnet.RegHandler(MSG_OPCODE_BROADCAST, salticidae.MsgNetworkMsgCallback(C.onReceiveBroadcast), _i)
 			mnet.RegHandler(MSG_OPCODE_ACK, salticidae.MsgNetworkMsgCallback(C.onReceiveAck), _i)
 			net.RegPeerHandler(salticidae.PeerNetworkPeerCallback(C.peerHandler), _i)
 			mnet.RegErrorHandler(salticidae.MsgNetworkErrorCallback(C.errorHandler), _i)
@@ -331,6 +354,7 @@ func main() {
 				if !addr.IsEq(a.addr) {
 					peer := salticidae.NewPeerIDFromNetAddr(addr, false)
 					defer peer.Free()
+					a.peers = append(a.peers, salticidae.NewPeerIDFromNetAddr(addr, true))
 					a.net.AddPeer(peer)
 					a.net.SetPeerAddr(peer, addr)
 					a.net.ConnPeer(peer, -1, 2)
