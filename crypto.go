@@ -13,6 +13,7 @@ type x509 struct {
 	inner    CX509
 	dep      interface{}
 	autoFree bool
+	freed    bool
 }
 
 // X509 is the handle for a X509 certificate.
@@ -25,13 +26,16 @@ func X509FromC(ptr CX509) X509 {
 
 func x509SetFinalizer(res X509, autoFree bool) {
 	res.autoFree = autoFree
-	if res != nil && autoFree {
+	if res.inner != nil && autoFree {
 		runtime.SetFinalizer(res, func(self X509) { self.Free() })
 	}
 }
 
 // Free manually frees the underlying C pointer.
 func (x509 X509) Free() {
+	if doubleFreeWarn(&x509.freed) {
+		return
+	}
 	C.x509_free(x509.inner)
 	if x509.autoFree {
 		runtime.SetFinalizer(x509, nil)
@@ -47,6 +51,7 @@ type CPKey = *C.pkey_t
 type pKey struct {
 	inner    CPKey
 	autoFree bool
+	freed    bool
 }
 
 // PKey is the handle for an OpenSSL EVP_PKEY.
@@ -59,13 +64,16 @@ func PKeyFromC(ptr CPKey) PKey {
 
 func pKeySetFinalizer(res PKey, autoFree bool) {
 	res.autoFree = autoFree
-	if res != nil && autoFree {
+	if res.inner != nil && autoFree {
 		runtime.SetFinalizer(res, func(self PKey) { self.Free() })
 	}
 }
 
 // Free manually frees the underlying C pointer.
 func (pkey PKey) Free() {
+	if doubleFreeWarn(&pkey.freed) {
+		return
+	}
 	C.pkey_free(pkey.inner)
 	if pkey.autoFree {
 		runtime.SetFinalizer(pkey, nil)

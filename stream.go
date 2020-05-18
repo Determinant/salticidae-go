@@ -29,6 +29,7 @@ type CByteArray = *C.bytearray_t
 type byteArray struct {
 	inner    CByteArray
 	autoFree bool
+	freed    bool
 }
 
 // ByteArray is an array of binary data.
@@ -41,7 +42,7 @@ func ByteArrayFromC(ptr CByteArray) ByteArray {
 
 func byteArraySetFinalizer(res ByteArray, autoFree bool) {
 	res.autoFree = autoFree
-	if res != nil && autoFree {
+	if res.inner != nil && autoFree {
 		runtime.SetFinalizer(res, func(self ByteArray) { self.Free() })
 	}
 }
@@ -49,6 +50,9 @@ func byteArraySetFinalizer(res ByteArray, autoFree bool) {
 // Free the ByteArray manually. If the object is constructed with autoFree =
 // true, this will immediately free the object.
 func (ba ByteArray) Free() {
+	if doubleFreeWarn(&ba.freed) {
+		return
+	}
 	C.bytearray_free(ba.inner)
 	if ba.autoFree {
 		runtime.SetFinalizer(ba, nil)
@@ -65,6 +69,7 @@ type dataStream struct {
 	inner    CDataStream
 	attached map[uintptr]interface{}
 	autoFree bool
+	freed    bool
 }
 
 // Stream of binary data.
@@ -79,13 +84,16 @@ func DataStreamFromC(ptr CDataStream) DataStream {
 
 func dataStreamSetFinalizer(res DataStream, autoFree bool) {
 	res.autoFree = autoFree
-	if res != nil && autoFree {
+	if res.inner != nil && autoFree {
 		runtime.SetFinalizer(res, func(self DataStream) { self.Free() })
 	}
 }
 
 // Free the underlying C pointer manually.
 func (ds DataStream) Free() {
+	if doubleFreeWarn(&ds.freed) {
+		return
+	}
 	C.datastream_free(ds.inner)
 	if ds.autoFree {
 		runtime.SetFinalizer(ds, nil)
@@ -105,6 +113,7 @@ type uint256 struct {
 	inner    CUInt256
 	dep      interface{}
 	autoFree bool
+	freed    bool
 }
 
 // UInt256 is a 256-bit integer.
@@ -117,13 +126,16 @@ func UInt256FromC(ptr CUInt256) UInt256 {
 
 func uint256SetFinalizer(res UInt256, autoFree bool) {
 	res.autoFree = autoFree
-	if res != nil && autoFree {
+	if res.inner != nil && autoFree {
 		runtime.SetFinalizer(res, func(self UInt256) { self.Free() })
 	}
 }
 
 // Free the underlying C pointer manually.
 func (u256 UInt256) Free() {
+	if doubleFreeWarn(&u256.freed) {
+		return
+	}
 	C.uint256_free(u256.inner)
 	if u256.autoFree {
 		runtime.SetFinalizer(u256, nil)

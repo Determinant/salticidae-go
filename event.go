@@ -13,6 +13,7 @@ type eventContext struct {
 	inner    CEventContext
 	attached map[uintptr]interface{}
 	autoFree bool
+	freed    bool
 }
 
 // EventContext is the handle for an event loop.
@@ -20,13 +21,16 @@ type EventContext = *eventContext
 
 func eventContextSetFinalizer(res EventContext, autoFree bool) {
 	res.autoFree = autoFree
-	if res != nil && autoFree {
+	if res.inner != nil && autoFree {
 		runtime.SetFinalizer(res, func(self EventContext) { self.Free() })
 	}
 }
 
 // Free the underlying C pointer manually.
 func (ec EventContext) Free() {
+	if doubleFreeWarn(&ec.freed) {
+		return
+	}
 	C.eventcontext_free(ec.inner)
 	if ec.autoFree {
 		runtime.SetFinalizer(ec, nil)
@@ -46,6 +50,7 @@ type threadCall struct {
 	inner    CThreadCall
 	ec       EventContext
 	autoFree bool
+	freed    bool
 }
 
 // ThreadCall is the handle for scheduling a function call executed by a
@@ -59,13 +64,16 @@ type ThreadCallCallback = C.threadcall_callback_t
 
 func threadCallSetFinalizer(res ThreadCall, autoFree bool) {
 	res.autoFree = autoFree
-	if res != nil && autoFree {
+	if res.inner != nil && autoFree {
 		runtime.SetFinalizer(res, func(self ThreadCall) { self.Free() })
 	}
 }
 
 // Free the underlying C pointer manually.
 func (tc ThreadCall) Free() {
+	if doubleFreeWarn(&tc.freed) {
+		return
+	}
 	C.threadcall_free(tc.inner)
 	if tc.autoFree {
 		runtime.SetFinalizer(tc, nil)
@@ -82,6 +90,7 @@ type timerEvent struct {
 	inner    CTimerEvent
 	ec       EventContext
 	autoFree bool
+	freed    bool
 }
 
 // TimerEvent is the handle for a timed event.
@@ -94,13 +103,16 @@ type TimerEventCallback = C.timerev_callback_t
 
 func timerEventSetFinalizer(res TimerEvent, autoFree bool) {
 	res.autoFree = autoFree
-	if res != nil && autoFree {
+	if res.inner != nil && autoFree {
 		runtime.SetFinalizer(res, func(self TimerEvent) { self.Free() })
 	}
 }
 
 // Free the underlying C pointer manually.
 func (te TimerEvent) Free() {
+	if doubleFreeWarn(&te.freed) {
+		return
+	}
 	C.timerev_free(te.inner)
 	if te.autoFree {
 		runtime.SetFinalizer(te, nil)
@@ -117,6 +129,7 @@ type sigEvent struct {
 	inner    CSigEvent
 	ec       EventContext
 	autoFree bool
+	freed    bool
 }
 
 // SigEvent is the handle for a UNIX signal event.
@@ -132,13 +145,16 @@ var (
 
 func sigEventSetFinalizer(res SigEvent, autoFree bool) {
 	res.autoFree = autoFree
-	if res != nil && autoFree {
+	if res.inner != nil && autoFree {
 		runtime.SetFinalizer(res, func(self SigEvent) { self.Free() })
 	}
 }
 
 // Free the underlying C pointer manually.
 func (se SigEvent) Free() {
+	if doubleFreeWarn(&se.freed) {
+		return
+	}
 	C.sigev_free(se.inner)
 	if se.autoFree {
 		runtime.SetFinalizer(se, nil)
@@ -155,6 +171,7 @@ type mpscQueue struct {
 	inner    CMPSCQueue
 	ec       EventContext
 	autoFree bool
+	freed    bool
 }
 
 // MPSCQueue is a Multi-Producer, Single-Consumer queue.
@@ -169,13 +186,16 @@ type MPSCQueueCallback = C.mpscqueue_callback_t
 
 func mpscQueueSetFinalizer(res MPSCQueue, autoFree bool) {
 	res.autoFree = autoFree
-	if res != nil && autoFree {
+	if res.inner != nil && autoFree {
 		runtime.SetFinalizer(res, func(self MPSCQueue) { self.Free() })
 	}
 }
 
 // Free the underlying C pointer manually.
 func (q MPSCQueue) Free() {
+	if doubleFreeWarn(&q.freed) {
+		return
+	}
 	C.mpscqueue_free(q.inner)
 	if q.autoFree {
 		runtime.SetFinalizer(q, nil)

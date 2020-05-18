@@ -13,6 +13,7 @@ type netAddr struct {
 	inner    CNetAddr
 	dep      interface{}
 	autoFree bool
+	freed    bool
 }
 
 // NetAddr is a network address object.
@@ -29,13 +30,16 @@ func NetAddrFromC(ptr CNetAddr) NetAddr {
 
 func netAddrSetFinalizer(res NetAddr, autoFree bool) {
 	res.autoFree = autoFree
-	if res != nil && autoFree {
+	if res.inner != nil && autoFree {
 		runtime.SetFinalizer(res, func(self NetAddr) { self.Free() })
 	}
 }
 
 // Free the underlying C pointer manually.
 func (na NetAddr) Free() {
+	if doubleFreeWarn(&na.freed) {
+		return
+	}
 	C.netaddr_free(na.inner)
 	if na.autoFree {
 		runtime.SetFinalizer(na, nil)
@@ -51,6 +55,7 @@ type CNetAddrArray = *C.netaddr_array_t
 type netAddrArray struct {
 	inner    CNetAddrArray
 	autoFree bool
+	freed    bool
 }
 
 // NetAddrArray is an array of network address.
@@ -62,13 +67,16 @@ func NetAddrArrayFromC(ptr CNetAddrArray) NetAddrArray {
 
 func netAddrArraySetFinalizer(res NetAddrArray, autoFree bool) {
 	res.autoFree = autoFree
-	if res != nil && autoFree {
+	if res.inner != nil && autoFree {
 		runtime.SetFinalizer(res, func(self NetAddrArray) { self.Free() })
 	}
 }
 
 // Free the underlying C pointer manually.
 func (naa NetAddrArray) Free() {
+	if doubleFreeWarn(&naa.freed) {
+		return
+	}
 	C.netaddr_array_free(naa.inner)
 	if naa.autoFree {
 		runtime.SetFinalizer(naa, nil)
@@ -140,7 +148,6 @@ func NewNetAddrArrayFromAddrs(arr []NetAddr, autoFree bool) (res NetAddrArray) {
 	_arr := make([]CNetAddr, size)
 	for i, v := range arr {
 		_arr[i] = v.inner
-		runtime.KeepAlive(v)
 	}
 	if size > 0 {
 		// FIXME: here we assume struct of a single pointer has the same memory
@@ -150,6 +157,7 @@ func NewNetAddrArrayFromAddrs(arr []NetAddr, autoFree bool) (res NetAddrArray) {
 	} else {
 		res = NetAddrArrayFromC(C.netaddr_array_new())
 	}
+	runtime.KeepAlive(arr)
 	runtime.KeepAlive(_arr)
 	netAddrArraySetFinalizer(res, autoFree)
 	return

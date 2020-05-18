@@ -13,6 +13,7 @@ type msgNetwork struct {
 	inner    CMsgNetwork
 	dep      interface{}
 	autoFree bool
+	freed    bool
 }
 
 // MsgNetwork is the handle for a message network.
@@ -29,13 +30,16 @@ func MsgNetworkFromC(ptr CMsgNetwork) MsgNetwork {
 
 func msgNetworkSetFinalizer(res MsgNetwork, autoFree bool) {
 	res.autoFree = autoFree
-	if res != nil && autoFree {
+	if res.inner != nil && autoFree {
 		runtime.SetFinalizer(res, func(self MsgNetwork) { self.Free() })
 	}
 }
 
 // Free the underlying C pointer manually.
 func (net MsgNetwork) Free() {
+	if doubleFreeWarn(&net.freed) {
+		return
+	}
 	C.msgnetwork_free(net.inner)
 	if net.autoFree {
 		runtime.SetFinalizer(net, nil)
@@ -51,6 +55,7 @@ type CMsgNetworkConn = *C.msgnetwork_conn_t
 type msgNetworkConn struct {
 	inner    CMsgNetworkConn
 	autoFree bool
+	freed    bool
 }
 
 // MsgNetworkConn is the handle for a message network connection.
@@ -64,13 +69,16 @@ func MsgNetworkConnFromC(ptr CMsgNetworkConn) MsgNetworkConn {
 
 func msgNetworkConnSetFinalizer(res MsgNetworkConn, autoFree bool) {
 	res.autoFree = autoFree
-	if res != nil && autoFree {
+	if res.inner != nil && autoFree {
 		runtime.SetFinalizer(res, func(self MsgNetworkConn) { self.Free() })
 	}
 }
 
 // Free manually frees the underlying C pointer.
 func (conn MsgNetworkConn) Free() {
+	if doubleFreeWarn(&conn.freed) {
+		return
+	}
 	C.msgnetwork_conn_free(conn.inner)
 	if conn.autoFree {
 		runtime.SetFinalizer(conn, nil)
@@ -87,6 +95,7 @@ type msgNetworkConfig struct {
 	inner    CMsgNetworkConfig
 	dep      interface{}
 	autoFree bool
+	freed    bool
 }
 
 // MsgNetworkConfig is the configuration for MsgNetwork.
@@ -99,13 +108,16 @@ func MsgNetworkConfigFromC(ptr CMsgNetworkConfig) MsgNetworkConfig {
 
 func msgNetworkConfigSetFinalizer(res MsgNetworkConfig, autoFree bool) {
 	res.autoFree = autoFree
-	if res != nil && autoFree {
+	if res.inner != nil && autoFree {
 		runtime.SetFinalizer(res, func(self MsgNetworkConfig) { self.Free() })
 	}
 }
 
 // Free manually frees the underlying C pointer
 func (config MsgNetworkConfig) Free() {
+	if doubleFreeWarn(&config.freed) {
+		return
+	}
 	C.msgnetwork_config_free(config.inner)
 	if config.autoFree {
 		runtime.SetFinalizer(config, nil)
@@ -140,6 +152,7 @@ type peerNetwork struct {
 	inner    CPeerNetwork
 	dep      interface{}
 	autoFree bool
+	freed    bool
 }
 
 // PeerNetwork is the handle for a peer-to-peer network.
@@ -152,13 +165,16 @@ func PeerNetworkFromC(ptr CPeerNetwork) PeerNetwork {
 
 func peerNetworkSetFinalizer(res PeerNetwork, autoFree bool) {
 	res.autoFree = autoFree
-	if res != nil && autoFree {
+	if res.inner != nil && autoFree {
 		runtime.SetFinalizer(res, func(self PeerNetwork) { self.Free() })
 	}
 }
 
 // Free the underlying C pointer manually.
 func (net PeerNetwork) Free() {
+	if doubleFreeWarn(&net.freed) {
+		return
+	}
 	C.peernetwork_free(net.inner)
 	if net.autoFree {
 		runtime.SetFinalizer(net, nil)
@@ -174,6 +190,7 @@ type CPeerNetworkConn = *C.peernetwork_conn_t
 type peerNetworkConn struct {
 	inner    CPeerNetworkConn
 	autoFree bool
+	freed    bool
 }
 
 // PeerNetworkConn is the handle for a PeerNetwork connection.
@@ -186,13 +203,16 @@ func PeerNetworkConnFromC(ptr CPeerNetworkConn) PeerNetworkConn {
 
 func peerNetworkConnSetFinalizer(res PeerNetworkConn, autoFree bool) {
 	res.autoFree = autoFree
-	if res != nil && autoFree {
+	if res.inner != nil && autoFree {
 		runtime.SetFinalizer(res, func(self PeerNetworkConn) { self.Free() })
 	}
 }
 
 // Free the underlying C pointer manually.
 func (conn PeerNetworkConn) Free() {
+	if doubleFreeWarn(&conn.freed) {
+		return
+	}
 	C.peernetwork_conn_free(conn.inner)
 	if conn.autoFree {
 		runtime.SetFinalizer(conn, nil)
@@ -208,6 +228,7 @@ type CPeerNetworkConfig = *C.peernetwork_config_t
 type peerNetworkConfig struct {
 	inner    CPeerNetworkConfig
 	autoFree bool
+	freed    bool
 }
 
 // PeerNetworkConfig is the configuration for PeerNetwork.
@@ -220,13 +241,16 @@ func PeerNetworkConfigFromC(ptr CPeerNetworkConfig) PeerNetworkConfig {
 
 func peerNetworkConfigSetFinalizer(res PeerNetworkConfig, autoFree bool) {
 	res.autoFree = autoFree
-	if res != nil && autoFree {
+	if res.inner != nil && autoFree {
 		runtime.SetFinalizer(res, func(self PeerNetworkConfig) { self.Free() })
 	}
 }
 
 // Free manually frees the underlying C pointer
 func (config PeerNetworkConfig) Free() {
+	if doubleFreeWarn(&config.freed) {
+		return
+	}
 	C.peernetwork_config_free(config.inner)
 	if config.autoFree {
 		runtime.SetFinalizer(config, nil)
@@ -242,6 +266,7 @@ type CPeerID = *C.peerid_t
 type peerID struct {
 	inner    CPeerID
 	autoFree bool
+	freed    bool
 }
 
 // PeerID is the peer identity object.
@@ -254,13 +279,16 @@ func PeerIDFromC(ptr CPeerID) PeerID {
 
 func peerIDSetFinalizer(res PeerID, autoFree bool) {
 	res.autoFree = autoFree
-	if res != nil && autoFree {
+	if res.inner != nil && autoFree {
 		runtime.SetFinalizer(res, func(self PeerID) { self.Free() })
 	}
 }
 
 // Free the underlying C pointer manually.
 func (pid PeerID) Free() {
+	if doubleFreeWarn(&pid.freed) {
+		return
+	}
 	C.peerid_free(pid.inner)
 	if pid.autoFree {
 		runtime.SetFinalizer(pid, nil)
@@ -276,6 +304,7 @@ type CPeerIDArray = *C.peerid_array_t
 type peerIDArray struct {
 	inner    CPeerIDArray
 	autoFree bool
+	freed    bool
 }
 
 // PeerIDArray is an array of peer ids.
@@ -288,13 +317,16 @@ func PeerIDArrayFromC(ptr CPeerIDArray) PeerIDArray {
 
 func peerIDArraySetFinalizer(res PeerIDArray, autoFree bool) {
 	res.autoFree = autoFree
-	if res != nil && autoFree {
+	if res.inner != nil && autoFree {
 		runtime.SetFinalizer(res, func(self PeerIDArray) { self.Free() })
 	}
 }
 
 // Free the underlying C pointer manually.
 func (pidarr PeerIDArray) Free() {
+	if doubleFreeWarn(&pidarr.freed) {
+		return
+	}
 	C.peerid_array_free(pidarr.inner)
 	if pidarr.autoFree {
 		runtime.SetFinalizer(pidarr, nil)
@@ -311,6 +343,7 @@ type clientNetwork struct {
 	inner    CClientNetwork
 	dep      interface{}
 	autoFree bool
+	freed    bool
 }
 
 // ClientNetwork is the handle for a client-server network.
@@ -323,13 +356,16 @@ func ClientNetworkFromC(ptr CClientNetwork) ClientNetwork {
 
 func clientNetworkSetFinalizer(res ClientNetwork, autoFree bool) {
 	res.autoFree = autoFree
-	if res != nil && autoFree {
+	if res.inner != nil && autoFree {
 		runtime.SetFinalizer(res, func(self ClientNetwork) { self.Free() })
 	}
 }
 
 // Free manually frees the underlying C pointer.
 func (net ClientNetwork) Free() {
+	if doubleFreeWarn(&net.freed) {
+		return
+	}
 	C.clientnetwork_free(net.inner)
 	if net.autoFree {
 		runtime.SetFinalizer(net, nil)
@@ -345,6 +381,7 @@ type CClientNetworkConn = *C.clientnetwork_conn_t
 type clientNetworkConn struct {
 	inner    CClientNetworkConn
 	autoFree bool
+	freed    bool
 }
 
 // ClientNetworkConn is the handle for a ClientNetwork connection.
@@ -357,13 +394,16 @@ func ClientNetworkConnFromC(ptr CClientNetworkConn) ClientNetworkConn {
 
 func clientNetworkConnSetFinalizer(res ClientNetworkConn, autoFree bool) {
 	res.autoFree = autoFree
-	if res != nil && autoFree {
+	if res.inner != nil && autoFree {
 		runtime.SetFinalizer(res, func(self ClientNetworkConn) { self.Free() })
 	}
 }
 
 // Free manually frees the underlying C pointer.
 func (conn ClientNetworkConn) Free() {
+	if doubleFreeWarn(&conn.freed) {
+		return
+	}
 	C.clientnetwork_conn_free(conn.inner)
 	if conn.autoFree {
 		runtime.SetFinalizer(conn, nil)
@@ -553,7 +593,7 @@ func (config MsgNetworkConfig) TLSKeyByMove(pkey PKey) {
 // event loop.
 func NewMsgNetwork(ec EventContext, config MsgNetworkConfig, err *Error) (res MsgNetwork) {
 	res = MsgNetworkFromC(C.msgnetwork_new(ec.inner, config.inner, err))
-	if res != nil {
+	if res.inner != nil {
 		ec.attach(rawPtr(res.inner), res)
 	}
 	msgNetworkSetFinalizer(res, true)
@@ -754,7 +794,6 @@ func NewPeerIDArrayFromPeers(arr []PeerID, autoFree bool) (res PeerIDArray) {
 	_arr := make([]CPeerID, size)
 	for i, v := range arr {
 		_arr[i] = v.inner
-		runtime.KeepAlive(v)
 	}
 	if size > 0 {
 		// FIXME: here we assume struct of a single pointer has the same memory
@@ -764,6 +803,7 @@ func NewPeerIDArrayFromPeers(arr []PeerID, autoFree bool) (res PeerIDArray) {
 	} else {
 		res = PeerIDArrayFromC(C.peerid_array_new())
 	}
+	runtime.KeepAlive(arr)
 	runtime.KeepAlive(_arr)
 	peerIDArraySetFinalizer(res, autoFree)
 	return
@@ -776,7 +816,7 @@ func NewPeerIDArrayFromPeers(arr []PeerID, autoFree bool) (res PeerIDArray) {
 // NewPeerNetwork creates a peer-to-peer message network handle.
 func NewPeerNetwork(ec EventContext, config PeerNetworkConfig, err *Error) (res PeerNetwork) {
 	res = PeerNetworkFromC(C.peernetwork_new(ec.inner, config.inner, err))
-	if res != nil {
+	if res.inner != nil {
 		ec.attach(rawPtr(res.inner), res)
 	}
 	peerNetworkSetFinalizer(res, true)
@@ -990,7 +1030,7 @@ func (conn PeerNetworkConn) GetPeerID(autoFree bool) (res PeerID) {
 // NewClientNetwork creates a client-server message network handle.
 func NewClientNetwork(ec EventContext, config MsgNetworkConfig, err *Error) (res ClientNetwork) {
 	res = ClientNetworkFromC(C.clientnetwork_new(ec.inner, config.inner, err))
-	if res != nil {
+	if res.inner != nil {
 		ec.attach(rawPtr(res.inner), res)
 	}
 	clientNetworkSetFinalizer(res, true)

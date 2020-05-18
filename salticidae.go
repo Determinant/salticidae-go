@@ -2,7 +2,11 @@ package salticidae
 
 // #include "salticidae/util.h"
 import "C"
-import "unsafe"
+import (
+	"fmt"
+	"os"
+	"unsafe"
+)
 
 type rawPtr = unsafe.Pointer
 
@@ -23,4 +27,13 @@ func NewError() Error {
 // StrError converts the error code into a human readable string.
 func StrError(code int) string {
 	return C.GoString(C.salticidae_strerror(C.int(code)))
+}
+
+func doubleFreeWarn(freed *bool) (res bool) {
+	res = *freed
+	if res {
+		fmt.Fprintf(os.Stderr, "attempt to double free!\n")
+	}
+	*freed = true
+	return
 }

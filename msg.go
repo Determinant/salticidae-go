@@ -10,6 +10,7 @@ type CMsg = *C.msg_t
 type msg struct {
 	inner    CMsg
 	autoFree bool
+	freed    bool
 }
 
 //// begin Msg def
@@ -22,13 +23,16 @@ func MsgFromC(ptr CMsg) Msg { return &msg{inner: ptr} }
 
 func msgSetFinalizer(res Msg, autoFree bool) {
 	res.autoFree = autoFree
-	if res != nil && autoFree {
+	if res.inner != nil && autoFree {
 		runtime.SetFinalizer(res, func(self Msg) { self.Free() })
 	}
 }
 
 // Free the underlying C pointer manually.
 func (msg Msg) Free() {
+	if doubleFreeWarn(&msg.freed) {
+		return
+	}
 	C.msg_free(msg.inner)
 	if msg.autoFree {
 		runtime.SetFinalizer(msg, nil)
